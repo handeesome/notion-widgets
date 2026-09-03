@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#191919" />
+    <title>Xiamen Weather</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="widget" aria-label="Current weather in Xiamen">
+      <div class="weather" aria-live="polite" aria-busy="true">
+        <div class="place" aria-hidden="true">
+          <p class="city">XIAMEN</p>
+          <p class="label">WEATHER</p>
+        </div>
+
+        <div class="weather-icon" id="weather-icon" aria-hidden="true"></div>
+
+        <div class="conditions">
+          <p class="temperature"><span id="temperature">--</span> ºC</p>
+          <p class="description" id="description">loading weather</p>
+        </div>
+      </div>
+      <p class="sr-only" id="status">Loading current weather for Xiamen.</p>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,201 @@
+:root {
+  color-scheme: light dark;
+  --background: #ffffff;
+  --foreground: #000000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #191919;
+    --foreground: #ffffff;
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #000000;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #191919;
+  --foreground: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.widget {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.weather {
+  display: flex;
+  min-width: 309.3px;
+  min-height: 88.8px;
+  padding: 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+}
+
+.place,
+.conditions,
+.weather-icon {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.place {
+  width: 92.38px;
+  height: 56.8px;
+  padding: 0 15px;
+}
+
+.weather-icon {
+  width: 50px;
+  height: 56.8px;
+}
+
+.weather-icon svg {
+  display: block;
+  width: 50px;
+  height: 50px;
+  overflow: visible;
+}
+
+.conditions {
+  min-width: 134.92px;
+  min-height: 46.8px;
+  margin: 5px 0;
+  padding: 0 15px;
+}
+
+.city,
+.label,
+.temperature,
+.description {
+  margin: 0;
+  color: var(--foreground);
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.city,
+.label,
+.description {
+  font-size: 15px;
+}
+
+.description {
+  font-weight: 500;
+}
+
+.city {
+  font-weight: 700;
+}
+
+.label {
+  padding-top: 1px;
+  font-weight: 100;
+}
+
+.temperature {
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.description {
+  min-height: 18px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 320px) {
+  .weather {
+    min-width: 0;
+    transform: scale(0.86);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .weather[data-ready="true"] {
+    animation: weather-in 180ms ease-out both;
+  }
+
+  .weather-icon .cloud-back {
+    animation: cloud-drift-wide 7s ease-in-out infinite;
+  }
+
+  .weather-icon .cloud-front {
+    animation: cloud-drift 3s ease-in-out infinite;
+  }
+}
+
+@keyframes weather-in {
+  from {
+    opacity: 0.65;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cloud-drift-wide {
+  0%,
+  100% {
+    transform: translateX(-1.5px);
+  }
+  50% {
+    transform: translateX(1.5px);
+  }
+}
+
+@keyframes cloud-drift {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(1px);
+  }
+}
