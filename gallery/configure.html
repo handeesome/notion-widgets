@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <title>Configure Gallery</title>
+    <link rel="stylesheet" href="./configure.css?v=1" />
+  </head>
+  <body>
+    <main class="config-shell">
+      <aside class="config-pane" aria-labelledby="configure-title">
+        <header class="pane-header">
+          <p class="eyebrow">Gallery widget</p>
+          <h1 id="configure-title">Configure</h1>
+          <p class="header-note" data-connection-status>Loading gallery…</p>
+        </header>
+
+        <form class="settings" id="config-form">
+          <section class="settings-section" aria-labelledby="settings-title">
+            <h2 id="settings-title">Settings</h2>
+
+            <div class="field field--stacked">
+              <div>
+                <label>Upload images</label>
+                <p class="field-help">Select an image to replace it. Drag to reorder.</p>
+              </div>
+              <div class="image-list" data-image-list></div>
+              <button class="upload-button" type="button" data-upload-button>
+                <span aria-hidden="true">＋</span> Upload images
+              </button>
+              <input type="file" accept="image/*" multiple hidden data-upload-input />
+              <input type="file" accept="image/*" hidden data-replace-input />
+            </div>
+
+            <label class="field">
+              <span>Image sizing</span>
+              <select data-config="imageSizing">
+                <option value="contain">Contain</option>
+                <option value="cover">Cover</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Animate gallery speed</span>
+              <select data-config="autoplayMs">
+                <option value="0">Disabled</option>
+                <option value="10000">🐌 Very slow (10s)</option>
+                <option value="5000">🐢 Slow (5s)</option>
+                <option value="3000">🚶 Regular (3s)</option>
+                <option value="2000">🏃 Fast (2s)</option>
+                <option value="1000">🚗 Very fast (1s)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Scroll speed</span>
+              <select data-config="transitionMs">
+                <option value="3000">🐌 Very slow (3s)</option>
+                <option value="2000">🐢 Slow (2s)</option>
+                <option value="1000">🚶 Regular (1s)</option>
+                <option value="500">🏃 Fast (0.5s)</option>
+                <option value="300">🚗 Very fast (0.3s)</option>
+                <option value="200">✈️ Extremely fast (0.2s)</option>
+                <option value="100">🚀 Warp speed (0.1s)</option>
+              </select>
+            </label>
+
+            <label class="toggle-row">
+              <span>Show dots</span>
+              <input type="checkbox" data-config="showDots" />
+              <span class="toggle" aria-hidden="true"></span>
+            </label>
+
+            <label class="toggle-row">
+              <span>Overlay arrows over slides</span>
+              <input type="checkbox" data-config="overlayArrows" />
+              <span class="toggle" aria-hidden="true"></span>
+            </label>
+          </section>
+
+          <hr />
+
+          <section class="settings-section" aria-labelledby="style-title">
+            <h2 id="style-title">Style</h2>
+
+            <div class="color-field" data-color-field="slideBackground">
+              <label for="slide-background-text">Slide background color</label>
+              <div class="color-control">
+                <input id="slide-background-text" type="text" maxlength="7" spellcheck="false" />
+                <button type="button" class="color-swatch-button" aria-label="Choose slide background color" data-color-button>
+                  <span aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+
+            <label class="toggle-row">
+              <span>Drop shadows</span>
+              <input type="checkbox" data-config="dropShadow" />
+              <span class="toggle" aria-hidden="true"></span>
+            </label>
+
+            <label class="toggle-row">
+              <span>Use transparent background</span>
+              <input type="checkbox" data-config="transparentBackground" />
+              <span class="toggle" aria-hidden="true"></span>
+            </label>
+
+            <div class="color-field" data-color-field="widgetBackground">
+              <label for="widget-background-text">Widget background color</label>
+              <div class="color-control">
+                <input id="widget-background-text" type="text" maxlength="7" spellcheck="false" />
+                <button type="button" class="color-swatch-button" aria-label="Choose widget background color" data-color-button>
+                  <span aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="color-field" data-color-field="arrowColor">
+              <label for="arrow-color-text">Arrow color</label>
+              <div class="color-control">
+                <input id="arrow-color-text" type="text" maxlength="7" spellcheck="false" />
+                <button type="button" class="color-swatch-button" aria-label="Choose arrow color" data-color-button>
+                  <span aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="color-field" data-color-field="dotsColor">
+              <label for="dots-color-text">Dots color</label>
+              <div class="color-control">
+                <input id="dots-color-text" type="text" maxlength="7" spellcheck="false" />
+                <button type="button" class="color-swatch-button" aria-label="Choose dots color" data-color-button>
+                  <span aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+          </section>
+        </form>
+      </aside>
+
+      <section class="preview-pane" aria-labelledby="preview-title">
+        <header class="preview-header">
+          <div>
+            <p class="eyebrow">Live</p>
+            <h2 id="preview-title">Preview</h2>
+          </div>
+          <p>Drag the lower-right corner to resize.</p>
+        </header>
+
+        <div class="preview-stage">
+          <div class="preview-frame">
+            <iframe
+              title="Gallery widget preview"
+              src="./index.html?preview=1"
+              data-preview
+            ></iframe>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="color-popover" data-color-popover hidden>
+      <div
+        class="color-spectrum"
+        role="slider"
+        tabindex="0"
+        aria-label="Color saturation and brightness"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <span class="spectrum-marker" aria-hidden="true"></span>
+      </div>
+      <div class="hue-row">
+        <span class="current-color" aria-hidden="true"></span>
+        <input type="range" min="0" max="360" step="1" aria-label="Hue" data-hue />
+      </div>
+      <label class="popover-hex">
+        <span>HEX</span>
+        <input type="text" maxlength="7" spellcheck="false" data-popover-hex />
+      </label>
+      <div class="palette-groups" data-palette-groups></div>
+    </div>
+
+    <p class="sr-only" role="status" aria-live="polite" data-status></p>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="./supabase-config.js?v=1" defer></script>
+    <script src="./gallery-config.js?v=1" defer></script>
+    <script src="./gallery-data.js?v=1" defer></script>
+    <script src="./configure.js?v=2" defer></script>
+  </body>
+</html>

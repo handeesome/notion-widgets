@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f8cc82" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <title>Gallery Widget</title>
+    <link rel="stylesheet" href="./styles.css?v=1" />
+  </head>
+  <body>
+    <main
+      class="gallery-widget"
+      aria-roledescription="carousel"
+      aria-label="图片画廊"
+      tabindex="0"
+    >
+      <div class="carousel">
+        <button class="arrow arrow--previous" type="button" aria-label="上一张图片">
+          <span aria-hidden="true"></span>
+        </button>
+
+        <div class="viewport">
+          <div class="track"></div>
+        </div>
+
+        <button class="arrow arrow--next" type="button" aria-label="下一张图片">
+          <span aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="dots" role="tablist" aria-label="选择图片"></div>
+
+      <a
+        class="configure-link"
+        href="./configure.html"
+        target="_blank"
+        rel="opener"
+        aria-label="Configure gallery"
+        title="Configure gallery"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </a>
+
+      <p class="sr-only" aria-live="polite" data-status>正在加载图库。</p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="./supabase-config.js?v=1" defer></script>
+    <script src="./gallery-config.js?v=1" defer></script>
+    <script src="./gallery-data.js?v=1" defer></script>
+    <script src="./app.js?v=4" defer></script>
+  </body>
+</html>
