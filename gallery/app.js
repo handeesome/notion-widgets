@@ -19,6 +19,8 @@ let currentIndex = 0;
 let pointerStartX = null;
 let pointerStartY = null;
 let autoplayTimer = null;
+let wrapTimer = null;
+let wrapping = false;
 let refreshInFlight = false;
 let hasUsableConfig = Boolean(cachedConfig);
 const pauseReasons = new Set();
@@ -122,6 +124,7 @@ reducedMotion.addEventListener?.("change", restartAutoplay);
 function applyConfig(nextConfig) {
   config = nextConfig;
   currentIndex = Math.min(currentIndex, Math.max(config.images.length - 1, 0));
+  cancelWrap();
 
   const root = document.documentElement;
   root.style.setProperty(
@@ -137,7 +140,7 @@ function applyConfig(nextConfig) {
   widget.dataset.dropShadow = String(config.dropShadow);
 
   renderSlides();
-  showSlide(currentIndex);
+  showSlide(currentIndex, { animate: false });
 }
 
 function renderSlides() {
@@ -159,17 +162,13 @@ function renderSlides() {
     track.append(emptyState);
   }
 
-  for (const [index, image] of config.images.entries()) {
-    const slide = document.createElement("figure");
-    slide.className = "slide";
+  const hasMultipleImages = config.images.length > 1;
+  if (hasMultipleImages) {
+    track.append(createSlide(config.images.at(-1), true));
+  }
 
-    const element = document.createElement("img");
-    element.src = image.src;
-    element.alt = image.alt;
-    element.draggable = false;
-    element.style.objectFit = config.imageSizing;
-    slide.append(element);
-    track.append(slide);
+  for (const [index, image] of config.images.entries()) {
+    track.append(createSlide(image));
 
     const dot = document.createElement("button");
     dot.className = "dot";
@@ -180,11 +179,28 @@ function renderSlides() {
     dotsContainer.append(dot);
   }
 
-  slides = [...track.querySelectorAll(".slide")];
+  if (hasMultipleImages) {
+    track.append(createSlide(config.images[0], true));
+  }
+
+  slides = [...track.querySelectorAll(".slide:not(.slide--clone)")];
   dots = [...dotsContainer.querySelectorAll(".dot")];
-  const hasMultipleImages = slides.length > 1;
   previousButton.hidden = !hasMultipleImages;
   nextButton.hidden = !hasMultipleImages;
+}
+
+function createSlide(image, clone = false) {
+  const slide = document.createElement("figure");
+  slide.className = `slide${clone ? " slide--clone" : ""}`;
+  if (clone) slide.setAttribute("aria-hidden", "true");
+
+  const element = document.createElement("img");
+  element.src = image.src;
+  element.alt = clone ? "" : image.alt;
+  element.draggable = false;
+  element.style.objectFit = config.imageSizing;
+  slide.append(element);
+  return slide;
 }
 
 function resetPointer() {
@@ -193,7 +209,7 @@ function resetPointer() {
   resumeAutoplay("pointer");
 }
 
-function showSlide(nextIndex) {
+function showSlide(nextIndex, { animate = true } = {}) {
   if (slides.length === 0) {
     track.style.transform = "translate3d(0, 0, 0)";
     status.textContent = track.textContent;
@@ -201,8 +217,17 @@ function showSlide(nextIndex) {
     return;
   }
 
+  if (wrapping) return;
+
+  const previousIndex = currentIndex;
+  const wrapsForward =
+    slides.length > 1 && previousIndex === slides.length - 1 && nextIndex >= slides.length;
+  const wrapsBackward = slides.length > 1 && previousIndex === 0 && nextIndex < 0;
   currentIndex = (nextIndex + slides.length) % slides.length;
-  track.style.transform = `translate3d(-${currentIndex * 100}%, 0, 0)`;
+  let physicalIndex = slides.length > 1 ? currentIndex + 1 : currentIndex;
+  if (wrapsForward) physicalIndex = slides.length + 1;
+  if (wrapsBackward) physicalIndex = 0;
+  setTrackPosition(physicalIndex, animate);
 
   slides.forEach((slide, index) => {
     slide.setAttribute("aria-hidden", String(index !== currentIndex));
@@ -215,6 +240,41 @@ function showSlide(nextIndex) {
 
   status.textContent = `正在显示第 ${currentIndex + 1} 张图片，共 ${slides.length} 张。`;
   restartAutoplay();
+
+  if (wrapsForward || wrapsBackward) {
+    if (!animate || reducedMotion.matches) {
+      setTrackPosition(currentIndex + 1, false);
+      return;
+    }
+
+    wrapping = true;
+    wrapTimer = window.setTimeout(finishWrap, config.transitionMs + 40);
+  }
+}
+
+function setTrackPosition(physicalIndex, animate) {
+  if (!animate) track.classList.add("is-jumping");
+  else track.classList.remove("is-jumping");
+  track.style.transform = `translate3d(-${physicalIndex * 100}%, 0, 0)`;
+
+  if (!animate) {
+    track.getBoundingClientRect();
+    window.requestAnimationFrame(() => track.classList.remove("is-jumping"));
+  }
+}
+
+function finishWrap() {
+  window.clearTimeout(wrapTimer);
+  wrapTimer = null;
+  wrapping = false;
+  setTrackPosition(currentIndex + 1, false);
+  restartAutoplay();
+}
+
+function cancelWrap() {
+  window.clearTimeout(wrapTimer);
+  wrapTimer = null;
+  wrapping = false;
 }
 
 function pauseAutoplay(reason) {

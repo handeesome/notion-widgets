@@ -74,6 +74,10 @@ button {
   will-change: transform;
 }
 
+.track.is-jumping {
+  transition: none;
+}
+
 .slide {
   flex: 0 0 100%;
   width: 100%;
