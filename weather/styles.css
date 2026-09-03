@@ -52,6 +52,14 @@ body {
   justify-content: center;
 }
 
+.weather-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
 .weather {
   display: flex;
   min-width: 309.3px;

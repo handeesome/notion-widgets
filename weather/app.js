@@ -1,23 +1,42 @@
-const XIAMEN = {
-  latitude: 24.4798,
-  longitude: 118.0819,
-  timezone: "Asia/Shanghai",
-};
+const LOCATIONS = [
+  {
+    id: "xiamen",
+    displayName: "Xiamen",
+    latitude: 24.4798,
+    longitude: 118.0819,
+    timezone: "Asia/Shanghai",
+  },
+  {
+    id: "ningbo",
+    displayName: "Ningbo",
+    latitude: 29.8683,
+    longitude: 121.544,
+    timezone: "Asia/Shanghai",
+  },
+];
 
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
-const CACHE_KEY = "xiamen-weather-current-v1";
-
-const weatherElement = document.querySelector(".weather");
-const temperatureElement = document.querySelector("#temperature");
-const descriptionElement = document.querySelector("#description");
-const iconElement = document.querySelector("#weather-icon");
-const statusElement = document.querySelector("#status");
 
 applyThemePreference();
-renderIcon("cloud", true);
-loadCachedWeather();
-refreshWeather();
-window.setInterval(refreshWeather, REFRESH_INTERVAL_MS);
+
+for (const location of LOCATIONS) {
+  const root = document.querySelector(`[data-weather="${location.id}"]`);
+  const elements = {
+    root,
+    temperature: root.querySelector("[data-temperature]"),
+    description: root.querySelector("[data-description]"),
+    icon: root.querySelector("[data-weather-icon]"),
+    status: root.querySelector("[data-status]"),
+  };
+
+  renderIcon(elements.icon, "cloud", true);
+  loadCachedWeather(location, elements);
+  refreshWeather(location, elements);
+  window.setInterval(
+    () => refreshWeather(location, elements),
+    REFRESH_INTERVAL_MS,
+  );
+}
 
 function applyThemePreference() {
   const theme = new URLSearchParams(window.location.search).get("theme");
@@ -26,23 +45,23 @@ function applyThemePreference() {
   }
 }
 
-function buildEndpoint() {
+function buildEndpoint(location) {
   const params = new URLSearchParams({
-    latitude: XIAMEN.latitude,
-    longitude: XIAMEN.longitude,
+    latitude: location.latitude,
+    longitude: location.longitude,
     current: "temperature_2m,weather_code,is_day",
-    timezone: XIAMEN.timezone,
+    timezone: location.timezone,
   });
 
   return `https://api.open-meteo.com/v1/forecast?${params}`;
 }
 
-async function refreshWeather() {
+async function refreshWeather(location, elements) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 8000);
 
   try {
-    const response = await fetch(buildEndpoint(), {
+    const response = await fetch(buildEndpoint(location), {
       signal: controller.signal,
       cache: "no-store",
     });
@@ -65,40 +84,44 @@ async function refreshWeather() {
       updatedAt: Date.now(),
     };
 
-    localStorage.setItem(CACHE_KEY, JSON.stringify(weather));
-    renderWeather(weather);
+    localStorage.setItem(getCacheKey(location), JSON.stringify(weather));
+    renderWeather(location, elements, weather);
   } catch (error) {
-    const hasReading = temperatureElement.textContent !== "--";
+    const hasReading = elements.temperature.textContent !== "--";
     if (!hasReading) {
-      descriptionElement.textContent = "weather unavailable";
-      statusElement.textContent = "Current weather for Xiamen is temporarily unavailable.";
+      elements.description.textContent = "weather unavailable";
+      elements.status.textContent = `Current weather for ${location.displayName} is temporarily unavailable.`;
     }
-    console.warn("Could not refresh Xiamen weather:", error);
+    console.warn(`Could not refresh ${location.displayName} weather:`, error);
   } finally {
     window.clearTimeout(timeout);
-    weatherElement.setAttribute("aria-busy", "false");
+    elements.root.setAttribute("aria-busy", "false");
   }
 }
 
-function loadCachedWeather() {
+function getCacheKey(location) {
+  return `${location.id}-weather-current-v1`;
+}
+
+function loadCachedWeather(location, elements) {
   try {
-    const weather = JSON.parse(localStorage.getItem(CACHE_KEY));
+    const weather = JSON.parse(localStorage.getItem(getCacheKey(location)));
     const isRecent = Date.now() - weather.updatedAt < 3 * 60 * 60 * 1000;
     if (isRecent && Number.isFinite(weather.temperature)) {
-      renderWeather(weather);
+      renderWeather(location, elements, weather);
     }
   } catch {
     // A missing or malformed cache should never prevent a fresh request.
   }
 }
 
-function renderWeather(weather) {
+function renderWeather(location, elements, weather) {
   const condition = getCondition(weather.code);
-  temperatureElement.textContent = weather.temperature;
-  descriptionElement.textContent = condition.description;
-  statusElement.textContent = `${weather.temperature} degrees Celsius and ${condition.description} in Xiamen.`;
-  renderIcon(condition.icon, weather.isDay);
-  weatherElement.dataset.ready = "true";
+  elements.temperature.textContent = weather.temperature;
+  elements.description.textContent = condition.description;
+  elements.status.textContent = `${weather.temperature} degrees Celsius and ${condition.description} in ${location.displayName}.`;
+  renderIcon(elements.icon, condition.icon, weather.isDay);
+  elements.root.dataset.ready = "true";
 }
 
 function getCondition(code) {
@@ -119,7 +142,7 @@ function getCondition(code) {
   return { description: "current weather", icon: "cloud" };
 }
 
-function renderIcon(type, isDay) {
+function renderIcon(iconElement, type, isDay) {
   const sunOrMoon = isDay
     ? '<circle cx="19" cy="18" r="7.2" fill="#FFC84D" stroke="#FFFFFF" stroke-width="1.5"/><g class="sun-rays" stroke="#FFC84D" stroke-width="2" stroke-linecap="round"><path d="M19 5.5v3"/><path d="M19 27.5v3"/><path d="M6.5 18h3"/><path d="M28.5 18h3"/><path d="m10.2 9.2 2.1 2.1"/><path d="m25.7 24.7 2.1 2.1"/><path d="m27.8 9.2-2.1 2.1"/></g>'
     : '<path d="M25.5 8.2a10 10 0 1 0 8.1 15.9 10.5 10.5 0 0 1-8.1-15.9Z" fill="#8EBBFF" stroke="#FFFFFF" stroke-width="1.5"/>';

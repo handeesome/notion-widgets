@@ -1,6 +1,6 @@
-# Xiamen Weather Widget
+# Xiamen & Ningbo Weather Widget
 
-一个为 Notion 准备的厦门实时天气小组件。视觉布局复刻了参考的 Indify 横向天气卡片，但不包含 Indify 水印、设置按钮或追踪脚本。
+一个为 Notion 准备的厦门与宁波实时天气小组件：厦门在上，宁波紧接在下。视觉布局复刻了参考的 Indify 横向天气卡片，但不包含 Indify 水印、设置按钮或追踪脚本。
 
 ## 本地预览
 
