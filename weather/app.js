@@ -121,27 +121,27 @@ function getCondition(code) {
 
 function renderIcon(type, isDay) {
   const sunOrMoon = isDay
-    ? '<circle cx="19" cy="18" r="7.2" fill="#FFC84D" stroke="#FFFFFF" stroke-width="1.5"/><g stroke="#FFC84D" stroke-width="2" stroke-linecap="round"><path d="M19 5.5v3"/><path d="M19 27.5v3"/><path d="M6.5 18h3"/><path d="M28.5 18h3"/><path d="m10.2 9.2 2.1 2.1"/><path d="m25.7 24.7 2.1 2.1"/><path d="m27.8 9.2-2.1 2.1"/></g>'
+    ? '<circle cx="19" cy="18" r="7.2" fill="#FFC84D" stroke="#FFFFFF" stroke-width="1.5"/><g class="sun-rays" stroke="#FFC84D" stroke-width="2" stroke-linecap="round"><path d="M19 5.5v3"/><path d="M19 27.5v3"/><path d="M6.5 18h3"/><path d="M28.5 18h3"/><path d="m10.2 9.2 2.1 2.1"/><path d="m25.7 24.7 2.1 2.1"/><path d="m27.8 9.2-2.1 2.1"/></g>'
     : '<path d="M25.5 8.2a10 10 0 1 0 8.1 15.9 10.5 10.5 0 0 1-8.1-15.9Z" fill="#8EBBFF" stroke="#FFFFFF" stroke-width="1.5"/>';
 
-  const cloudBack = '<path class="cloud-back" d="M19 29.5h14.5a5.5 5.5 0 0 0 .2-11 7.2 7.2 0 0 0-13.7-1.7 6.1 6.1 0 0 0-1 12.7Z" fill="#91C0F8" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round"/>';
-  const cloudFront = '<path class="cloud-front" d="M14.5 37h21.8a6.8 6.8 0 0 0 .2-13.6 8.6 8.6 0 0 0-16.4-2.1A7.3 7.3 0 0 0 14.5 37Z" fill="#57A0EE" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round"/>';
+  const cloudBack = '<g class="cloud-back"><path d="M19 29.5h14.5a5.5 5.5 0 0 0 .2-11 7.2 7.2 0 0 0-13.7-1.7 6.1 6.1 0 0 0-1 12.7Z" fill="#91C0F8" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round"/></g>';
+  const cloudFront = '<g class="cloud-front"><path d="M14.5 37h21.8a6.8 6.8 0 0 0 .2-13.6 8.6 8.6 0 0 0-16.4-2.1A7.3 7.3 0 0 0 14.5 37Z" fill="#57A0EE" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round"/></g>';
   const cloud = `${cloudBack}${cloudFront}`;
 
   let drawing = cloud;
   if (type === "clear") drawing = sunOrMoon;
   if (type === "partly-cloudy") drawing = `${sunOrMoon}${cloudFront}`;
   if (type === "rain") {
-    drawing = `${cloud}<g stroke="#69B9FF" stroke-width="2.2" stroke-linecap="round"><path d="m17 40-2 4"/><path d="m27 40-2 4"/><path d="m37 40-2 4"/></g>`;
+    drawing = `${cloud}<g class="rain-drops" stroke="#69B9FF" stroke-width="2.2" stroke-linecap="round"><path d="m17 40-2 4"/><path d="m27 40-2 4"/><path d="m37 40-2 4"/></g>`;
   }
   if (type === "snow") {
-    drawing = `${cloud}<g fill="#BDE7FF"><circle cx="16" cy="43" r="1.7"/><circle cx="26" cy="43" r="1.7"/><circle cx="36" cy="43" r="1.7"/></g>`;
+    drawing = `${cloud}<g class="snow-flakes" fill="#BDE7FF"><circle cx="16" cy="43" r="1.7"/><circle cx="26" cy="43" r="1.7"/><circle cx="36" cy="43" r="1.7"/></g>`;
   }
   if (type === "storm") {
-    drawing = `${cloud}<path d="M28 37h-6l3 4h-4l6 7 1-6h4Z" fill="#FFD14D" stroke="#FFFFFF" stroke-width=".7" stroke-linejoin="round"/>`;
+    drawing = `${cloud}<path class="lightning" d="M28 37h-6l3 4h-4l6 7 1-6h4Z" fill="#FFD14D" stroke="#FFFFFF" stroke-width=".7" stroke-linejoin="round"/>`;
   }
   if (type === "fog") {
-    drawing = `${cloud}<g stroke="#A8B8C8" stroke-width="2" stroke-linecap="round"><path d="M10 41h29"/><path d="M15 46h20"/></g>`;
+    drawing = `${cloud}<g class="fog-lines" stroke="#A8B8C8" stroke-width="2" stroke-linecap="round"><path d="M10 41h29"/><path d="M15 46h20"/></g>`;
   }
 
   iconElement.innerHTML = `

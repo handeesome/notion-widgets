@@ -90,6 +90,46 @@ body {
   overflow: visible;
 }
 
+.weather-icon .cloud-back,
+.weather-icon .cloud-front,
+.weather-icon .sun-rays,
+.weather-icon .rain-drops,
+.weather-icon .snow-flakes,
+.weather-icon .lightning,
+.weather-icon .fog-lines {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.weather-icon .cloud-back {
+  animation: cloud-drift-wide 7s linear infinite;
+}
+
+.weather-icon .cloud-front {
+  animation: cloud-drift 3s ease-in-out infinite;
+}
+
+.weather-icon .sun-rays {
+  animation: sun-spin 9s linear infinite;
+}
+
+.weather-icon .rain-drops {
+  animation: rain-fall 900ms linear infinite;
+}
+
+.weather-icon .snow-flakes {
+  animation: snow-fall 2s ease-in-out infinite;
+}
+
+.weather-icon .lightning {
+  animation: lightning-flash 2.6s ease-in-out infinite;
+}
+
+.weather-icon .fog-lines {
+  animation: fog-drift 4s ease-in-out infinite;
+}
+
 .conditions {
   min-width: 134.92px;
   min-height: 46.8px;
@@ -159,14 +199,6 @@ body {
   .weather[data-ready="true"] {
     animation: weather-in 180ms ease-out both;
   }
-
-  .weather-icon .cloud-back {
-    animation: cloud-drift-wide 7s ease-in-out infinite;
-  }
-
-  .weather-icon .cloud-front {
-    animation: cloud-drift 3s ease-in-out infinite;
-  }
 }
 
 @keyframes weather-in {
@@ -183,10 +215,10 @@ body {
 @keyframes cloud-drift-wide {
   0%,
   100% {
-    transform: translateX(-1.5px);
+    transform: translateX(-4px);
   }
   50% {
-    transform: translateX(1.5px);
+    transform: translateX(5px);
   }
 }
 
@@ -196,6 +228,62 @@ body {
     transform: translateX(0);
   }
   50% {
-    transform: translateX(1px);
+    transform: translateX(2px);
+  }
+}
+
+@keyframes sun-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rain-fall {
+  from {
+    transform: translateY(-1px);
+    opacity: 0.35;
+  }
+  to {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+}
+
+@keyframes snow-fall {
+  0%,
+  100% {
+    transform: translate(-1px, -1px);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translate(1px, 2px);
+    opacity: 1;
+  }
+}
+
+@keyframes lightning-flash {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  76% {
+    opacity: 0.25;
+  }
+  82% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes fog-drift {
+  0%,
+  100% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(2px);
   }
 }
