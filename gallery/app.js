@@ -28,8 +28,9 @@ let hasUsableConfig = Boolean(cachedConfig);
 let wheelDelta = 0;
 let wheelLockedUntil = 0;
 let wheelResetTimer = null;
+let suppressImageOpen = false;
+let suppressImageOpenTimer = null;
 const pauseReasons = new Set();
-const hoverSelectLayouts = new Set(["visual-board", "fan-stack", "vertical-board"]);
 
 widget.dataset.preview = String(
   new URLSearchParams(window.location.search).get("preview") === "1",
@@ -93,10 +94,13 @@ widget.addEventListener("focusout", () => {
 
 viewport.addEventListener("pointerdown", (event) => {
   if (event.pointerType === "mouse" && event.button !== 0) return;
+  window.clearTimeout(suppressImageOpenTimer);
+  suppressImageOpen = false;
   pointerStartX = event.clientX;
   pointerStartY = event.clientY;
   pauseAutoplay("pointer");
-  viewport.setPointerCapture?.(event.pointerId);
+  const captureTarget = event.target.closest(".slide-link") || viewport;
+  captureTarget.setPointerCapture?.(event.pointerId);
 });
 
 viewport.addEventListener("pointerup", (event) => {
@@ -104,6 +108,12 @@ viewport.addEventListener("pointerup", (event) => {
 
   const distanceX = event.clientX - pointerStartX;
   const distanceY = event.clientY - pointerStartY;
+  if (Math.hypot(distanceX, distanceY) > 8) {
+    suppressImageOpen = true;
+    suppressImageOpenTimer = window.setTimeout(() => {
+      suppressImageOpen = false;
+    }, 120);
+  }
   pointerStartX = null;
   pointerStartY = null;
   resumeAutoplay("pointer");
@@ -125,6 +135,16 @@ viewport.addEventListener("pointerup", (event) => {
 
 viewport.addEventListener("pointercancel", resetPointer);
 viewport.addEventListener("lostpointercapture", resetPointer);
+viewport.addEventListener(
+  "click",
+  (event) => {
+    if (!event.target.closest(".slide-link") || !suppressImageOpen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressImageOpen = false;
+  },
+  true,
+);
 
 widget.addEventListener(
   "wheel",
@@ -266,21 +286,9 @@ function createSlide(image, clone = false, index = -1) {
   slide.className = `slide${clone ? " slide--clone" : ""}`;
   if (clone) slide.setAttribute("aria-hidden", "true");
 
-  if (!clone && hoverSelectLayouts.has(config.layout)) {
+  if (config.layout === "visual-board" && !clone) {
     slide.addEventListener("pointerenter", (event) => {
       if (event.pointerType !== "mouse" || index === currentIndex) return;
-      showSlide(index);
-    });
-  }
-
-  if (config.layout === "visual-board" && !clone) {
-    slide.role = "button";
-    slide.tabIndex = index === currentIndex ? 0 : -1;
-    slide.setAttribute("aria-label", `显示第 ${index + 1} 张图片：${image.alt}`);
-    slide.addEventListener("click", () => showSlide(index));
-    slide.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
       showSlide(index);
     });
   }
@@ -290,7 +298,22 @@ function createSlide(image, clone = false, index = -1) {
   element.alt = clone ? "" : image.alt;
   element.draggable = false;
   element.style.objectFit = config.imageSizing;
-  slide.append(element);
+
+  const link = document.createElement("a");
+  link.className = "slide-link";
+  link.href = image.src;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.draggable = false;
+  link.tabIndex = clone || index !== currentIndex ? -1 : 0;
+  if (!clone) {
+    link.setAttribute("aria-label", `在新标签页打开图片：${image.alt}`);
+    if (config.layout === "visual-board") {
+      link.addEventListener("focus", () => showSlide(index));
+    }
+  }
+  link.append(element);
+  slide.append(link);
   return slide;
 }
 
@@ -318,7 +341,7 @@ function showSlide(nextIndex, { animate = true } = {}) {
       const selected = index === currentIndex;
       slide.setAttribute("aria-current", String(selected));
       slide.setAttribute("aria-hidden", "false");
-      slide.tabIndex = selected ? 0 : -1;
+      slide.querySelector(".slide-link").tabIndex = selected ? 0 : -1;
     });
     status.textContent = `正在突出显示第 ${currentIndex + 1} 张图片，共 ${slides.length} 张。`;
     restartAutoplay();
@@ -334,6 +357,7 @@ function showSlide(nextIndex, { animate = true } = {}) {
       slide.dataset.fanPosition = position;
       slide.setAttribute("aria-current", String(position === "0"));
       slide.setAttribute("aria-hidden", String(position !== "0"));
+      slide.querySelector(".slide-link").tabIndex = position === "0" ? 0 : -1;
     });
     dots.forEach((dot, index) => {
       dot.setAttribute("aria-selected", String(index === currentIndex));
@@ -353,6 +377,7 @@ function showSlide(nextIndex, { animate = true } = {}) {
       slide.dataset.verticalPosition = position;
       slide.setAttribute("aria-current", String(position === "0"));
       slide.setAttribute("aria-hidden", String(position !== "0"));
+      slide.querySelector(".slide-link").tabIndex = position === "0" ? 0 : -1;
     });
     dots.forEach((dot, index) => {
       dot.setAttribute("aria-selected", String(index === currentIndex));
@@ -375,7 +400,9 @@ function showSlide(nextIndex, { animate = true } = {}) {
   setTrackPosition(physicalIndex, animate);
 
   slides.forEach((slide, index) => {
-    slide.setAttribute("aria-hidden", String(index !== currentIndex));
+    const selected = index === currentIndex;
+    slide.setAttribute("aria-hidden", String(!selected));
+    slide.querySelector(".slide-link").tabIndex = selected ? 0 : -1;
   });
 
   dots.forEach((dot, index) => {

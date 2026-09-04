@@ -97,6 +97,21 @@ button {
   -webkit-user-drag: none;
 }
 
+.slide-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  cursor: zoom-in;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.slide-link:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--arrow-color) 75%, transparent);
+  outline-offset: -3px;
+}
+
 .arrow {
   position: relative;
   display: grid;
@@ -296,16 +311,11 @@ button {
   border-radius: 24px;
   cursor: pointer;
   outline: none;
-  transition: flex var(--transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
+  transition: flex 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .gallery-widget[data-layout="visual-board"] .slide[aria-current="true"] {
   flex: 5 0 0;
-}
-
-.gallery-widget[data-layout="visual-board"] .slide:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--arrow-color) 75%, transparent);
-  outline-offset: -3px;
 }
 
 .gallery-widget[data-layout="visual-board"][data-drop-shadow="true"] .slide {
@@ -366,9 +376,9 @@ button {
   transform: scale(0.76);
   transform-style: preserve-3d;
   transition:
-    opacity var(--transition-duration) ease,
-    transform var(--transition-duration) cubic-bezier(0.4, 0, 0.2, 1),
-    visibility var(--transition-duration);
+    opacity 1s ease,
+    transform 1s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 1s;
   visibility: hidden;
 }
 
@@ -415,6 +425,14 @@ button {
 .gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="-2"] {
   cursor: pointer;
   pointer-events: auto;
+}
+
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="1"]:hover,
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="2"]:hover,
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="-1"]:hover,
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="-2"]:hover {
+  z-index: 150;
+  opacity: 1;
 }
 
 .gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="0"]:active {
@@ -597,7 +615,6 @@ button {
 .gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="2"],
 .gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="-1"],
 .gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="-2"] {
-  cursor: pointer;
   pointer-events: auto;
 }
 
