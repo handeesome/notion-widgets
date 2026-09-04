@@ -102,7 +102,7 @@ button {
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  cursor: zoom-in;
+  cursor: pointer;
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -616,6 +616,18 @@ button {
 .gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="-1"],
 .gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="-2"] {
   pointer-events: auto;
+}
+
+.gallery-widget[data-layout="vertical-board"]
+  .slide[data-vertical-position="1"]:hover,
+.gallery-widget[data-layout="vertical-board"]
+  .slide[data-vertical-position="2"]:hover,
+.gallery-widget[data-layout="vertical-board"]
+  .slide[data-vertical-position="-1"]:hover,
+.gallery-widget[data-layout="vertical-board"]
+  .slide[data-vertical-position="-2"]:hover {
+  opacity: 1;
+  transition-duration: 1s, var(--transition-duration), var(--transition-duration);
 }
 
 .gallery-widget[data-layout="vertical-board"]

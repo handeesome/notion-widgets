@@ -43,7 +43,7 @@ http://localhost:4174/configure.html?id=你的-gallery-id
 - 自动播放默认每 3 秒切换一张，并一直循环。
 - 鼠标悬停、键盘聚焦、触摸操作或页面进入后台时自动暂停。
 - 支持 Carousel、Accordion、Fan stack 和 Vertical board 四种布局；Vertical board 会把相邻图片向上下堆叠。
-- 支持左右箭头、分页点、键盘方向键和触摸滑动；Accordion 在桌面端悬停图片即可展开，Fan stack 悬停时会在原位显示图片，Vertical board 继续使用滚轮切换。
+- 支持左右箭头、分页点、键盘方向键和触摸滑动；Accordion 在桌面端悬停图片即可展开，Fan stack 悬停时会在原位显示图片，Vertical board 悬停时会渐显图片并继续使用滚轮切换。
 - 所有布局都可以点击图片，在新标签页中打开原图；拖动或滑动切换时不会误触。
 - 配置页支持上传、替换、删除、拖拽排序、布局、图片尺寸、速度、计数器、卡片圆角、箭头、分页点和颜色。
 - 图片上传前会在浏览器内缩放，并转换为 WebP。
