@@ -626,6 +626,7 @@ button {
   .slide[data-vertical-position="-1"]:hover,
 .gallery-widget[data-layout="vertical-board"]
   .slide[data-vertical-position="-2"]:hover {
+  z-index: 150;
   opacity: 1;
   transition-duration: 1s, var(--transition-duration), var(--transition-duration);
 }

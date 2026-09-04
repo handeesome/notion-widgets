@@ -26,7 +26,6 @@ let wrapping = false;
 let refreshInFlight = false;
 let hasUsableConfig = Boolean(cachedConfig);
 let wheelDelta = 0;
-let wheelLockedUntil = 0;
 let wheelResetTimer = null;
 let suppressImageOpen = false;
 let suppressImageOpenTimer = null;
@@ -158,15 +157,8 @@ widget.addEventListener(
     }, 140);
 
     if (Math.abs(wheelDelta) < 36) return;
-    const now = window.performance.now();
-    if (now < wheelLockedUntil) {
-      wheelDelta = 0;
-      return;
-    }
-
     const direction = wheelDelta > 0 ? 1 : -1;
     wheelDelta = 0;
-    wheelLockedUntil = now + Math.max(360, config.transitionMs);
     showSlide(currentIndex + direction);
   },
   { passive: false },
