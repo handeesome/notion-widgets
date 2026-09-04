@@ -73,6 +73,7 @@ document.querySelectorAll("[data-config]").forEach((control) => {
   const eventName = control.type === "range" ? "input" : "change";
   control.addEventListener(eventName, () => {
     if (!ready) return;
+    if (control.type === "radio" && !control.checked) return;
     config[key] = control.type === "checkbox" ? control.checked : control.value;
     if (["autoplayMs", "transitionMs", "verticalCardRadius"].includes(key)) {
       config[key] = Number(config[key]);
@@ -484,7 +485,8 @@ function renderPaletteGroups() {
 function syncControls() {
   document.querySelectorAll("[data-config]").forEach((control) => {
     const key = control.dataset.config;
-    if (control.type === "checkbox") control.checked = Boolean(config[key]);
+    if (control.type === "radio") control.checked = control.value === String(config[key]);
+    else if (control.type === "checkbox") control.checked = Boolean(config[key]);
     else control.value = String(config[key]);
   });
   for (const [key, field] of colorFields) {
