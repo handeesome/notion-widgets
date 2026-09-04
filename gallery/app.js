@@ -6,6 +6,8 @@ const previousButton = document.querySelector(".arrow--previous");
 const nextButton = document.querySelector(".arrow--next");
 const configureLink = document.querySelector(".configure-link");
 const status = document.querySelector("[data-status]");
+const counterCurrent = document.querySelector("[data-counter-current]");
+const counterTotal = document.querySelector("[data-counter-total]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const galleryId = window.GalleryData.getGalleryId();
 const cachedConfig = window.GalleryConfig.loadCachedConfig(galleryId);
@@ -23,6 +25,9 @@ let wrapTimer = null;
 let wrapping = false;
 let refreshInFlight = false;
 let hasUsableConfig = Boolean(cachedConfig);
+let wheelDelta = 0;
+let wheelLockedUntil = 0;
+let wheelResetTimer = null;
 const pauseReasons = new Set();
 
 widget.dataset.preview = String(
@@ -43,6 +48,18 @@ previousButton.addEventListener("click", () => showSlide(currentIndex - 1));
 nextButton.addEventListener("click", () => showSlide(currentIndex + 1));
 
 widget.addEventListener("keydown", (event) => {
+  if (config.layout === "vertical-board" && event.key === "ArrowUp") {
+    event.preventDefault();
+    showSlide(currentIndex - 1);
+    return;
+  }
+
+  if (config.layout === "vertical-board" && event.key === "ArrowDown") {
+    event.preventDefault();
+    showSlide(currentIndex + 1);
+    return;
+  }
+
   if (event.key === "ArrowLeft") {
     event.preventDefault();
     showSlide(currentIndex - 1);
@@ -90,6 +107,14 @@ viewport.addEventListener("pointerup", (event) => {
   pointerStartY = null;
   resumeAutoplay("pointer");
 
+  if (config.layout === "vertical-board") {
+    if (Math.abs(distanceY) < 40 || Math.abs(distanceY) <= Math.abs(distanceX)) {
+      return;
+    }
+    showSlide(currentIndex + (distanceY < 0 ? 1 : -1));
+    return;
+  }
+
   if (Math.abs(distanceX) < 40 || Math.abs(distanceX) <= Math.abs(distanceY)) {
     return;
   }
@@ -99,6 +124,32 @@ viewport.addEventListener("pointerup", (event) => {
 
 viewport.addEventListener("pointercancel", resetPointer);
 viewport.addEventListener("lostpointercapture", resetPointer);
+
+widget.addEventListener(
+  "wheel",
+  (event) => {
+    if (config.layout !== "vertical-board") return;
+    event.preventDefault();
+    wheelDelta += event.deltaY;
+    window.clearTimeout(wheelResetTimer);
+    wheelResetTimer = window.setTimeout(() => {
+      wheelDelta = 0;
+    }, 140);
+
+    if (Math.abs(wheelDelta) < 36) return;
+    const now = window.performance.now();
+    if (now < wheelLockedUntil) {
+      wheelDelta = 0;
+      return;
+    }
+
+    const direction = wheelDelta > 0 ? 1 : -1;
+    wheelDelta = 0;
+    wheelLockedUntil = now + Math.max(360, config.transitionMs);
+    showSlide(currentIndex + direction);
+  },
+  { passive: false },
+);
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -135,9 +186,22 @@ function applyConfig(nextConfig) {
   root.style.setProperty("--arrow-color", config.arrowColor);
   root.style.setProperty("--dots-color", config.dotsColor);
   root.style.setProperty("--transition-duration", `${config.transitionMs}ms`);
+  root.style.setProperty("--vertical-card-radius", `${config.verticalCardRadius}px`);
+  widget.dataset.layout = config.layout;
   widget.dataset.showDots = String(config.showDots);
+  widget.dataset.showCounter = String(config.showCounter);
   widget.dataset.overlayArrows = String(config.overlayArrows);
   widget.dataset.dropShadow = String(config.dropShadow);
+  widget.setAttribute(
+    "aria-roledescription",
+    config.layout === "visual-board"
+      ? "interactive gallery"
+      : config.layout === "fan-stack"
+        ? "stacked gallery"
+        : config.layout === "vertical-board"
+          ? "vertical gallery"
+          : "carousel",
+  );
 
   renderSlides();
   showSlide(currentIndex, { animate: false });
@@ -146,6 +210,8 @@ function applyConfig(nextConfig) {
 function renderSlides() {
   track.replaceChildren();
   dotsContainer.replaceChildren();
+  widget.dataset.hasImages = String(config.images.length > 0);
+  counterTotal.textContent = String(config.images.length).padStart(2, "0");
 
   if (config.images.length === 0) {
     const messages = {
@@ -163,36 +229,53 @@ function renderSlides() {
   }
 
   const hasMultipleImages = config.images.length > 1;
-  if (hasMultipleImages) {
+  const isVisualBoard = config.layout === "visual-board";
+  const isFanStack = config.layout === "fan-stack";
+  const isVerticalBoard = config.layout === "vertical-board";
+  if (hasMultipleImages && !isVisualBoard && !isFanStack && !isVerticalBoard) {
     track.append(createSlide(config.images.at(-1), true));
   }
 
   for (const [index, image] of config.images.entries()) {
-    track.append(createSlide(image));
+    track.append(createSlide(image, false, index));
 
-    const dot = document.createElement("button");
-    dot.className = "dot";
-    dot.type = "button";
-    dot.role = "tab";
-    dot.setAttribute("aria-label", `第 ${index + 1} 张图片`);
-    dot.addEventListener("click", () => showSlide(index));
-    dotsContainer.append(dot);
+    if (!isVisualBoard) {
+      const dot = document.createElement("button");
+      dot.className = "dot";
+      dot.type = "button";
+      dot.role = "tab";
+      dot.setAttribute("aria-label", `第 ${index + 1} 张图片`);
+      dot.addEventListener("click", () => showSlide(index));
+      dotsContainer.append(dot);
+    }
   }
 
-  if (hasMultipleImages) {
+  if (hasMultipleImages && !isVisualBoard && !isFanStack && !isVerticalBoard) {
     track.append(createSlide(config.images[0], true));
   }
 
   slides = [...track.querySelectorAll(".slide:not(.slide--clone)")];
   dots = [...dotsContainer.querySelectorAll(".dot")];
-  previousButton.hidden = !hasMultipleImages;
-  nextButton.hidden = !hasMultipleImages;
+  previousButton.hidden = !hasMultipleImages || isVisualBoard || isVerticalBoard;
+  nextButton.hidden = !hasMultipleImages || isVisualBoard || isVerticalBoard;
 }
 
-function createSlide(image, clone = false) {
+function createSlide(image, clone = false, index = -1) {
   const slide = document.createElement("figure");
   slide.className = `slide${clone ? " slide--clone" : ""}`;
   if (clone) slide.setAttribute("aria-hidden", "true");
+
+  if (config.layout === "visual-board" && !clone) {
+    slide.role = "button";
+    slide.tabIndex = index === currentIndex ? 0 : -1;
+    slide.setAttribute("aria-label", `显示第 ${index + 1} 张图片：${image.alt}`);
+    slide.addEventListener("click", () => showSlide(index));
+    slide.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      showSlide(index);
+    });
+  }
 
   const element = document.createElement("img");
   element.src = image.src;
@@ -218,6 +301,60 @@ function showSlide(nextIndex, { animate = true } = {}) {
   }
 
   if (wrapping) return;
+
+  if (config.layout === "visual-board") {
+    currentIndex = (nextIndex + slides.length) % slides.length;
+    track.style.transform = "";
+    track.classList.remove("is-jumping");
+    slides.forEach((slide, index) => {
+      const selected = index === currentIndex;
+      slide.setAttribute("aria-current", String(selected));
+      slide.setAttribute("aria-hidden", "false");
+      slide.tabIndex = selected ? 0 : -1;
+    });
+    status.textContent = `正在突出显示第 ${currentIndex + 1} 张图片，共 ${slides.length} 张。`;
+    restartAutoplay();
+    return;
+  }
+
+  if (config.layout === "fan-stack") {
+    currentIndex = (nextIndex + slides.length) % slides.length;
+    track.style.transform = "";
+    track.classList.remove("is-jumping");
+    slides.forEach((slide, index) => {
+      const position = getStackPosition(index, currentIndex, slides.length);
+      slide.dataset.fanPosition = position;
+      slide.setAttribute("aria-current", String(position === "0"));
+      slide.setAttribute("aria-hidden", String(position !== "0"));
+    });
+    dots.forEach((dot, index) => {
+      dot.setAttribute("aria-selected", String(index === currentIndex));
+      dot.tabIndex = index === currentIndex ? 0 : -1;
+    });
+    status.textContent = `正在显示第 ${currentIndex + 1} 张图片，共 ${slides.length} 张。`;
+    restartAutoplay();
+    return;
+  }
+
+  if (config.layout === "vertical-board") {
+    currentIndex = (nextIndex + slides.length) % slides.length;
+    track.style.transform = "";
+    track.classList.remove("is-jumping");
+    slides.forEach((slide, index) => {
+      const position = getStackPosition(index, currentIndex, slides.length);
+      slide.dataset.verticalPosition = position;
+      slide.setAttribute("aria-current", String(position === "0"));
+      slide.setAttribute("aria-hidden", String(position !== "0"));
+    });
+    dots.forEach((dot, index) => {
+      dot.setAttribute("aria-selected", String(index === currentIndex));
+      dot.tabIndex = index === currentIndex ? 0 : -1;
+    });
+    counterCurrent.textContent = String(currentIndex + 1).padStart(2, "0");
+    status.textContent = `正在显示第 ${currentIndex + 1} 张图片，共 ${slides.length} 张。`;
+    restartAutoplay();
+    return;
+  }
 
   const previousIndex = currentIndex;
   const wrapsForward =
@@ -250,6 +387,12 @@ function showSlide(nextIndex, { animate = true } = {}) {
     wrapping = true;
     wrapTimer = window.setTimeout(finishWrap, config.transitionMs + 40);
   }
+}
+
+function getStackPosition(index, activeIndex, length) {
+  let position = (index - activeIndex + length) % length;
+  if (position > length / 2) position -= length;
+  return Math.abs(position) <= 2 ? String(position) : "hidden";
 }
 
 function setTrackPosition(physicalIndex, animate) {

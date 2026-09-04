@@ -70,10 +70,13 @@ replaceInput.addEventListener("change", async () => {
 
 document.querySelectorAll("[data-config]").forEach((control) => {
   const key = control.dataset.config;
-  control.addEventListener("change", () => {
+  const eventName = control.type === "range" ? "input" : "change";
+  control.addEventListener(eventName, () => {
     if (!ready) return;
     config[key] = control.type === "checkbox" ? control.checked : control.value;
-    if (["autoplayMs", "transitionMs"].includes(key)) config[key] = Number(config[key]);
+    if (["autoplayMs", "transitionMs", "verticalCardRadius"].includes(key)) {
+      config[key] = Number(config[key]);
+    }
     commitChange();
   });
 });
@@ -488,6 +491,30 @@ function syncControls() {
     field.textInput.value = config[key];
     field.swatch.style.backgroundColor = config[key];
   }
+  syncConfigOutputs();
+  syncLayoutControls();
+}
+
+function syncLayoutControls() {
+  setConditionalControls("[data-carousel-only]", config.layout !== "carousel");
+  setConditionalControls("[data-navigation-only]", config.layout === "visual-board");
+  setConditionalControls("[data-vertical-only]", config.layout !== "vertical-board");
+}
+
+function setConditionalControls(selector, disabled) {
+  document.querySelectorAll(selector).forEach((field) => {
+    field.dataset.disabled = String(disabled);
+    field.setAttribute("aria-disabled", String(disabled));
+    field.querySelectorAll("input, button, select").forEach((control) => {
+      control.disabled = disabled;
+    });
+  });
+}
+
+function syncConfigOutputs() {
+  document.querySelectorAll("[data-config-output]").forEach((output) => {
+    output.value = String(config[output.dataset.configOutput]);
+  });
 }
 
 function openColorPopover(key, button) {
@@ -600,6 +627,8 @@ function commitChange({ immediate = false } = {}) {
 
 function reflectConfig() {
   config = window.GalleryConfig.sanitizeConfig(config);
+  syncConfigOutputs();
+  syncLayoutControls();
   window.GalleryConfig.saveCachedConfig(galleryId, config);
   postConfigToPreview();
   window.opener?.postMessage({ type: "gallery-config", galleryId, config }, window.location.origin);

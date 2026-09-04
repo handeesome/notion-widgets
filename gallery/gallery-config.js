@@ -3,10 +3,13 @@
 
   const DEFAULT_CONFIG = {
     images: [],
+    layout: "carousel",
     imageSizing: "cover",
     autoplayMs: 3000,
     transitionMs: 500,
     showDots: true,
+    showCounter: true,
+    verticalCardRadius: 24,
     overlayArrows: false,
     dropShadow: false,
     transparentBackground: false,
@@ -50,6 +53,11 @@
 
     return {
       images,
+      layout: ["carousel", "visual-board", "fan-stack", "vertical-board"].includes(
+        value.layout,
+      )
+        ? value.layout
+        : defaults.layout,
       imageSizing: ["cover", "contain"].includes(value.imageSizing)
         ? value.imageSizing
         : defaults.imageSizing,
@@ -65,6 +73,13 @@
         : defaults.transitionMs,
       showDots:
         typeof value.showDots === "boolean" ? value.showDots : defaults.showDots,
+      showCounter:
+        typeof value.showCounter === "boolean"
+          ? value.showCounter
+          : defaults.showCounter,
+      verticalCardRadius: Number.isFinite(Number(value.verticalCardRadius))
+        ? Math.min(48, Math.max(0, Math.round(Number(value.verticalCardRadius))))
+        : defaults.verticalCardRadius,
       overlayArrows:
         typeof value.overlayArrows === "boolean"
           ? value.overlayArrows
@@ -87,7 +102,7 @@
   function serializeConfig(value) {
     const config = sanitizeConfig(value);
     return {
-      version: 1,
+      version: 4,
       ...config,
       images: config.images.map(({ id, path, name, alt }) => ({
         id,

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f8cc82" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
     <title>Gallery Widget</title>
-    <link rel="stylesheet" href="./styles.css?v=2" />
+    <link rel="stylesheet" href="./styles.css?v=5" />
   </head>
   <body>
     <main
@@ -31,6 +31,12 @@
 
       <div class="dots" role="tablist" aria-label="选择图片"></div>
 
+      <div class="vertical-counter" aria-hidden="true">
+        <span class="vertical-counter__current" data-counter-current>00</span>
+        <span class="vertical-counter__line"></span>
+        <span class="vertical-counter__total" data-counter-total>00</span>
+      </div>
+
       <a
         class="configure-link"
         href="./configure.html"
@@ -50,8 +56,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <script src="./supabase-config.js?v=1" defer></script>
-    <script src="./gallery-config.js?v=1" defer></script>
+    <script src="./gallery-config.js?v=4" defer></script>
     <script src="./gallery-data.js?v=1" defer></script>
-    <script src="./app.js?v=5" defer></script>
+    <script src="./app.js?v=8" defer></script>
   </body>
 </html>
