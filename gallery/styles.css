@@ -409,6 +409,14 @@ button {
   visibility: visible;
 }
 
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="1"],
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="2"],
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="-1"],
+.gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="-2"] {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
 .gallery-widget[data-layout="fan-stack"] .slide[data-fan-position="0"]:active {
   cursor: grabbing;
 }
@@ -583,6 +591,14 @@ button {
   opacity: 0.3;
   transform: translateY(-60%) scale(0.7) rotateX(15deg);
   visibility: visible;
+}
+
+.gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="1"],
+.gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="2"],
+.gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="-1"],
+.gallery-widget[data-layout="vertical-board"] .slide[data-vertical-position="-2"] {
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .gallery-widget[data-layout="vertical-board"]

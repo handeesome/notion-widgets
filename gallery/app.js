@@ -29,6 +29,7 @@ let wheelDelta = 0;
 let wheelLockedUntil = 0;
 let wheelResetTimer = null;
 const pauseReasons = new Set();
+const hoverSelectLayouts = new Set(["visual-board", "fan-stack", "vertical-board"]);
 
 widget.dataset.preview = String(
   new URLSearchParams(window.location.search).get("preview") === "1",
@@ -264,6 +265,13 @@ function createSlide(image, clone = false, index = -1) {
   const slide = document.createElement("figure");
   slide.className = `slide${clone ? " slide--clone" : ""}`;
   if (clone) slide.setAttribute("aria-hidden", "true");
+
+  if (!clone && hoverSelectLayouts.has(config.layout)) {
+    slide.addEventListener("pointerenter", (event) => {
+      if (event.pointerType !== "mouse" || index === currentIndex) return;
+      showSlide(index);
+    });
+  }
 
   if (config.layout === "visual-board" && !clone) {
     slide.role = "button";
