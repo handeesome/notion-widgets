@@ -475,18 +475,27 @@ select:focus-visible,
 }
 
 .image-list {
+  position: relative;
   display: grid;
   gap: 8px;
   min-height: 72px;
   padding: 8px;
   border-radius: 8px;
   background: #ebebeb;
-  transition: background 150ms ease, box-shadow 150ms ease;
 }
 
 .image-list.is-drag-active {
-  background: #abdce8;
-  box-shadow: inset 0 0 0 1px rgb(50 150 180 / 16%);
+  overflow-anchor: none;
+}
+
+.is-reordering-images,
+.is-reordering-images * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.is-reordering-images iframe {
+  pointer-events: none;
 }
 
 .image-card {
@@ -500,7 +509,9 @@ select:focus-visible,
   border-radius: 8px;
   background: #c7c7c7;
   cursor: grab;
-  transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+  touch-action: none;
+  user-select: none;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .image-card:hover {
@@ -512,17 +523,26 @@ select:focus-visible,
 }
 
 .image-card.is-dragging {
-  z-index: 2;
-  background: #87e889;
-  box-shadow: 0 12px 24px rgb(39 125 56 / 20%);
-  opacity: 1;
-  transform: scale(1.012);
+  position: fixed;
+  z-index: 100;
+  margin: 0;
+  border-color: rgb(255 255 255 / 65%);
+  background: #c7c7c7;
+  box-shadow: 0 20px 38px rgb(25 25 25 / 23%), 0 5px 12px rgb(25 25 25 / 12%);
+  pointer-events: none;
+  scale: 1.025;
+  rotate: -0.7deg;
+  will-change: transform;
 }
 
-.image-card.is-drop-target {
-  border-color: #42b85a;
-  box-shadow: 0 0 0 3px rgb(66 184 90 / 16%);
-  transform: translateY(1px);
+.image-card.is-placeholder {
+  border: 1px dashed #c2c2c2;
+  background: #dedede;
+  box-shadow: none;
+}
+
+.image-card.is-placeholder > * {
+  visibility: hidden;
 }
 
 .image-card img {
@@ -996,6 +1016,11 @@ select:focus-visible,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .image-card.is-dragging {
+    scale: 1;
+    rotate: 0deg;
+  }
+
   *,
   *::before,
   *::after {

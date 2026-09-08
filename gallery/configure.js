@@ -36,7 +36,9 @@ const cachedConfig = window.GalleryConfig.loadCachedConfig(galleryId);
 let client = null;
 let config = cachedConfig || window.GalleryConfig.createDefaultConfig();
 let replaceImageId = null;
-let draggedImageId = null;
+let imageDrag = null;
+const imageMoveAnimations = new Map();
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let activeColorKey = null;
 let activeColorButton = null;
 let activeHsv = { h: 38, s: 0.48, v: 0.97 };
@@ -292,6 +294,9 @@ async function replaceImage(id, file) {
 }
 
 function renderImages() {
+  finishImageDrag(false, false);
+  imageMoveAnimations.forEach((animation) => animation.cancel());
+  imageMoveAnimations.clear();
   imageList.replaceChildren();
 
   if (config.images.length === 0) {
@@ -306,7 +311,6 @@ function renderImages() {
     const card = document.createElement("div");
     card.className = "image-card";
     card.dataset.imageId = image.id;
-    card.draggable = ready;
     card.tabIndex = ready ? 0 : -1;
     card.setAttribute("role", "group");
     card.setAttribute("aria-label", `${image.name}, image ${index + 1} of ${config.images.length}`);
@@ -314,6 +318,7 @@ function renderImages() {
     const thumbnail = document.createElement("img");
     thumbnail.src = image.src;
     thumbnail.alt = "";
+    thumbnail.draggable = false;
 
     const removeButton = createIconButton("×", `Remove ${image.name}`, () => removeImage(image.id));
     card.append(thumbnail, removeButton);
@@ -336,36 +341,219 @@ function renderImages() {
         replaceInput.click();
       }
     });
-    card.addEventListener("dragstart", (event) => {
-      draggedImageId = image.id;
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", image.id);
-      card.classList.add("is-dragging");
-      imageList.classList.add("is-drag-active");
-      event.dataTransfer.setDragImage(card, Math.round(card.offsetWidth / 2), Math.round(card.offsetHeight / 2));
-    });
-    card.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-      card.classList.add("is-drop-target");
-    });
-    card.addEventListener("dragleave", () => card.classList.remove("is-drop-target"));
-    card.addEventListener("drop", (event) => {
-      event.preventDefault();
-      card.classList.remove("is-drop-target");
-      imageList.classList.remove("is-drag-active");
-      const midpoint = card.getBoundingClientRect().top + card.offsetHeight / 2;
-      reorderDroppedImage(draggedImageId, image.id, event.clientY > midpoint);
-    });
-    card.addEventListener("dragend", () => {
-      draggedImageId = null;
-      card.classList.remove("is-dragging");
-      imageList.classList.remove("is-drag-active");
-      document.querySelectorAll(".is-drop-target").forEach((item) => item.classList.remove("is-drop-target"));
-    });
-
     imageList.append(card);
   });
+}
+
+imageList.addEventListener("pointerdown", (event) => {
+  const card = event.target.closest(".image-card");
+  if (!ready || imageDrag || !card || event.button !== 0 || !event.isPrimary || event.target.closest("button")) return;
+  imageDrag = {
+    card,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    x: event.clientX,
+    y: event.clientY,
+    phase: "pending",
+    originalCards: [...imageList.children],
+  };
+});
+
+// A completed drag must not open the replacement picker or click a remove button.
+imageList.addEventListener("click", (event) => {
+  if (!imageDrag || imageDrag.phase === "pending") return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
+imageList.addEventListener("dragstart", (event) => event.preventDefault());
+
+document.addEventListener("pointermove", (event) => {
+  const drag = imageDrag;
+  if (!drag || event.pointerId !== drag.pointerId || drag.phase === "settling") return;
+  drag.x = event.clientX;
+  drag.y = event.clientY;
+  if (drag.phase === "pending") {
+    if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) < 5) return;
+    startImageDrag(drag);
+  }
+  event.preventDefault();
+}, { passive: false });
+
+document.addEventListener("pointerup", (event) => {
+  if (event.pointerId !== imageDrag?.pointerId) return;
+  if (imageDrag.phase === "dragging") {
+    imageDrag.x = event.clientX;
+    imageDrag.y = event.clientY;
+    positionImageDrag(imageDrag);
+  }
+  finishImageDrag();
+});
+document.addEventListener("pointercancel", (event) => {
+  if (event.pointerId === imageDrag?.pointerId) finishImageDrag(false);
+});
+imageList.addEventListener("lostpointercapture", (event) => {
+  // Touch first captures the pressed card; ignore that capture transferring to the list.
+  if (event.target === imageList && event.pointerId === imageDrag?.pointerId && imageDrag.phase === "dragging") finishImageDrag(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (!imageDrag || imageDrag.phase === "pending") return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    finishImageDrag(false);
+  } else if (["Enter", " ", "ArrowUp", "ArrowDown", "Tab"].includes(event.key)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+window.addEventListener("blur", () => finishImageDrag(false, false));
+window.addEventListener("resize", () => finishImageDrag(false, false));
+
+function startImageDrag(drag) {
+  drag.phase = "dragging";
+  drag.rect = drag.card.getBoundingClientRect();
+  drag.offsetY = drag.startY - drag.rect.top;
+  drag.ghost = drag.card.cloneNode(true);
+  drag.ghost.classList.add("is-dragging");
+  drag.ghost.removeAttribute("data-image-id");
+  drag.ghost.setAttribute("aria-hidden", "true");
+  drag.ghost.inert = true;
+  Object.assign(drag.ghost.style, {
+    left: `${drag.rect.left}px`,
+    top: `${drag.rect.top}px`,
+    width: `${drag.rect.width}px`,
+    height: `${drag.rect.height}px`,
+  });
+  document.body.append(drag.ghost);
+  drag.card.classList.add("is-placeholder");
+  document.body.classList.add("is-reordering-images");
+  imageList.classList.add("is-drag-active");
+  imageList.setPointerCapture(drag.pointerId);
+  drag.card.focus({ preventScroll: true });
+  if (!reducedMotion.matches) {
+    drag.ghost.animate(
+      [{ scale: "1", rotate: "0deg" }, { scale: "1.025", rotate: "-0.7deg" }],
+      { duration: 180, easing: "ease-out" },
+    );
+  }
+  const pane = document.querySelector(".config-pane");
+  drag.scroller = getComputedStyle(pane).overflowY === "auto" ? pane : document.scrollingElement;
+  const frame = (time) => {
+    if (imageDrag !== drag || drag.phase !== "dragging") return;
+    const elapsed = Math.min(time - (drag.lastFrame || time), 32);
+    drag.lastFrame = time;
+    scrollImageDrag(drag, elapsed);
+    positionImageDrag(drag);
+    drag.frame = requestAnimationFrame(frame);
+  };
+  positionImageDrag(drag);
+  drag.frame = requestAnimationFrame(frame);
+}
+
+function scrollImageDrag(drag, elapsed) {
+  const listRect = imageList.getBoundingClientRect();
+  if (drag.x < listRect.left || drag.x > listRect.right) return;
+  const bounds = drag.scroller === document.scrollingElement
+    ? { top: 0, bottom: window.innerHeight }
+    : drag.scroller.getBoundingClientRect();
+  const top = Math.max(0, bounds.top);
+  const bottom = Math.min(window.innerHeight, bounds.bottom);
+  const edge = 64;
+  const speed = drag.y < top + edge
+    ? -Math.min(1, (top + edge - drag.y) / edge)
+    : drag.y > bottom - edge ? Math.min(1, (drag.y - bottom + edge) / edge) : 0;
+  drag.scroller.scrollTop += speed * elapsed * 0.65;
+}
+
+function positionImageDrag(drag) {
+  drag.ghost.style.transform = `translate3d(${drag.x - drag.startX}px, ${drag.y - drag.startY}px, 0)`;
+  const listRect = imageList.getBoundingClientRect();
+  if (drag.x < listRect.left - 24 || drag.x > listRect.right + 24) return;
+  const centerY = drag.y - drag.offsetY + drag.rect.height / 2;
+  const cards = [...imageList.children];
+  const otherCards = cards.filter((card) => card !== drag.card);
+  // Use layout positions so cards moving through an animation cannot retrigger a swap.
+  const nextCard = otherCards.find((card) => centerY < listRect.top + card.offsetTop + card.offsetHeight / 2);
+  const nextIndex = nextCard ? otherCards.indexOf(nextCard) : otherCards.length;
+  if (nextIndex === cards.indexOf(drag.card)) return;
+  animateImageOrder(() => imageList.insertBefore(drag.card, nextCard || null));
+}
+
+function animateImageOrder(reorder) {
+  const cards = [...imageList.children];
+  const previousTops = new Map(cards.map((card) => [card, card.getBoundingClientRect().top]));
+  imageMoveAnimations.forEach((animation) => animation.cancel());
+  imageMoveAnimations.clear();
+  reorder();
+  if (reducedMotion.matches) return;
+  for (const card of cards) {
+    if (card.classList.contains("is-placeholder")) continue;
+    const delta = previousTops.get(card) - card.getBoundingClientRect().top;
+    if (Math.abs(delta) < 0.5) continue;
+    const animation = card.animate(
+      [{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }],
+      { duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+    );
+    imageMoveAnimations.set(card, animation);
+    animation.onfinish = () => {
+      if (imageMoveAnimations.get(card) === animation) imageMoveAnimations.delete(card);
+    };
+  }
+}
+
+function finishImageDrag(commit = true, animate = true) {
+  const drag = imageDrag;
+  if (!drag) return;
+  if (drag.phase === "settling") {
+    if (!animate) drag.cleanup();
+    return;
+  }
+  if (drag.phase === "pending") {
+    imageDrag = null;
+    return;
+  }
+  drag.phase = "settling";
+  cancelAnimationFrame(drag.frame);
+  if (imageList.hasPointerCapture(drag.pointerId)) imageList.releasePointerCapture(drag.pointerId);
+  if (commit) {
+    const images = new Map(config.images.map((image) => [image.id, image]));
+    const reordered = [...imageList.children].map((card) => images.get(card.dataset.imageId));
+    if (reordered.some((image, index) => image !== config.images[index])) {
+      config.images = reordered;
+      [...imageList.children].forEach((card, index) => {
+        card.setAttribute("aria-label", `${config.images[index].name}, image ${index + 1} of ${config.images.length}`);
+      });
+      commitChange();
+      announce("Images reordered.");
+    }
+  } else {
+    animateImageOrder(() => drag.originalCards.forEach((card) => imageList.append(card)));
+  }
+  drag.cleanup = () => {
+    if (imageDrag !== drag) return;
+    drag.ghost.remove();
+    drag.card.classList.remove("is-placeholder");
+    imageList.classList.remove("is-drag-active");
+    document.body.classList.remove("is-reordering-images");
+    imageDrag = null;
+  };
+  if (!animate) {
+    drag.cleanup();
+    return;
+  }
+  drag.card.focus({ preventScroll: true });
+  const target = drag.card.getBoundingClientRect();
+  drag.ghost.getAnimations().forEach((animation) => animation.cancel());
+  const landing = drag.ghost.animate([
+    { transform: drag.ghost.style.transform, scale: "1.025", rotate: "-0.7deg" },
+    {
+      transform: `translate3d(${target.left - drag.rect.left}px, ${target.top - drag.rect.top}px, 0)`,
+      scale: "1",
+      rotate: "0deg",
+      boxShadow: "0 0 0 rgb(25 25 25 / 0%)",
+    },
+  ], { duration: reducedMotion.matches ? 1 : 200, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)", fill: "forwards" });
+  landing.finished.then(drag.cleanup, drag.cleanup);
 }
 
 function createIconButton(text, label, action) {
@@ -388,19 +576,6 @@ function moveImage(id, direction) {
   renderImages();
   commitChange();
   imageList.querySelector(`[data-image-id="${CSS.escape(id)}"]`)?.focus();
-}
-
-function reorderDroppedImage(sourceId, targetId, placeAfter) {
-  if (!sourceId || sourceId === targetId) return;
-  const sourceIndex = config.images.findIndex((image) => image.id === sourceId);
-  if (sourceIndex === -1) return;
-  const [movedImage] = config.images.splice(sourceIndex, 1);
-  let targetIndex = config.images.findIndex((image) => image.id === targetId);
-  if (placeAfter) targetIndex += 1;
-  config.images.splice(targetIndex, 0, movedImage);
-  renderImages();
-  commitChange();
-  announce("Images reordered.");
 }
 
 async function removeImage(id) {
