@@ -33,6 +33,7 @@
   let queued = false;
   let flipping = false;
   let flipTimer;
+  let faceTimer;
 
   function warning() {
     $("storage-note").hidden = false;
@@ -74,7 +75,8 @@
     const element = $(copyFields[key][0]);
     if (!preview || document.activeElement !== element) element.textContent = value;
   }
-  function render(animate = false) {
+  function render(animate = false, preserveMotion = false) {
+    const previousMode = document.documentElement.dataset.mode;
     if (!params.has("mode") && !modeChosen) mode = presentation.mode;
     document.documentElement.dataset.theme = ["light", "dark"].includes(theme) ? theme : "auto";
     for (const key of Object.keys(copyFields)) copy(key);
@@ -92,9 +94,11 @@
     const changed = card.classList.contains("is-revealed") !== open;
     const newQuestion = open && $("question-text").textContent !== questions[current];
     const motion = animate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (preserveMotion && flipping && previousMode === mode) { updateDisabled(); return; }
     clearTimeout(flipTimer);
+    clearTimeout(faceTimer);
     flipping = false;
-    card.classList.remove("box-opening", "cycle");
+    card.classList.remove("box-opening", "box-resetting", "cycle");
     function show(openFace, transition) {
       if (!transition) card.classList.add("no-motion");
       card.classList.toggle("is-revealed", openFace);
@@ -113,6 +117,14 @@
         flipping = false;
         updateDisabled();
       }, 600);
+    } else if (motion && changed && !open && mode === "box") {
+      // Let the old question leave before bringing in the next sealed box.
+      flipping = true;
+      card.classList.add("box-resetting");
+      faceTimer = setTimeout(() => { show(false, false); }, 240);
+      flipTimer = setTimeout(() => {
+        card.classList.remove("box-resetting"); flipping = false; updateDisabled();
+      }, 600);
     } else {
       show(open, motion && mode === "card");
       if (motion && mode === "card" && (changed || newQuestion)) {
@@ -122,13 +134,11 @@
       }
     }
     copy("invitation", ready ? presentation.invitation : "连接你的问题盲盒。");
-    $("preview-flip").textContent = open ? "返回封面" : "预览问题";
     $("card-action").setAttribute("aria-label", open ? mode === "box" ? "抽取下一个盲盒" : "抽取下一个问题" : "打开这个盲盒");
     updateDisabled();
   }
   function updateDisabled() {
     $("card-action").disabled = !ready || writing || flipping || !questions.length;
-    $("preview-flip").disabled = !ready || flipping;
     document.querySelector(".card-scene").setAttribute("aria-busy", String(writing));
   }
   function applyDeck(deck, animate) {
@@ -138,7 +148,7 @@
     remaining = deck.remaining; current = deck.current; revealed = deck.revealed;
     revision = deck.revision;
     presentation = window.QuestionPresentation.normalize(deck.settings);
-    render(animate && wasLoaded && !document.hidden);
+    render(animate && wasLoaded && !document.hidden, deck.last_action === "settings");
   }
   async function refresh(animate = false) {
     if (writing || syncing) { queued = true; return; }
@@ -193,8 +203,10 @@
     document.documentElement.classList.add("preview-mode");
     $("manage-questions").hidden = true;
     $("preview-label").hidden = false;
-    $("preview-flip").hidden = false;
-    $("preview-flip").addEventListener("click", activateCard);
+    for (const id of ["invitation-content", "question-content"]) $(id).addEventListener("click", (event) => {
+      if (event.target.closest(".preview-copy")) return;
+      activateCard();
+    });
     for (const [key, [id, label]] of Object.entries(copyFields)) {
       const element = $(id);
       element.classList.add("preview-copy");
@@ -220,12 +232,13 @@
       previewPresentation = window.QuestionPresentation.normalize(event.data.settings);
       presentation = previewPresentation;
       previewReady = event.data.ready === true;
-      modeChosen = false; render(false);
+      modeChosen = false; render(false, true);
     });
     if (window.ResizeObserver) {
       const widget = document.querySelector(".widget");
       new window.ResizeObserver(() => {
-        window.parent.postMessage({ type: "question-preview-size", height: Math.max(320, Math.min(1200, Math.ceil(widget.getBoundingClientRect().height))) }, location.origin);
+        const cardTop = document.querySelector(".card-scene").getBoundingClientRect().top + window.scrollY;
+        window.parent.postMessage({ type: "question-preview-size", height: Math.max(320, Math.min(1200, Math.ceil(widget.getBoundingClientRect().height))), cardTop }, location.origin);
       }).observe(widget);
     }
   }
@@ -238,7 +251,7 @@
     window.addEventListener("beforeunload", () => { unsubscribe?.(); clearInterval(poll); });
   } else {
     loadLocal();
-    window.addEventListener("storage", (event) => { if (event.key === KEY) { loadLocal(); render(false); } });
+    window.addEventListener("storage", (event) => { if (event.key === KEY) { loadLocal(); render(false, preview); } });
   }
   if (!["card", "box"].includes(mode)) mode = "box";
   render(false);

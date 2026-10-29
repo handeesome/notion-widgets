@@ -6,20 +6,20 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="referrer" content="no-referrer" />
   <title>管理问题 · 留一个问题</title>
-  <link rel="stylesheet" href="./styles.css?v=7" />
-  <link rel="stylesheet" href="./dashboard.css?v=7" />
+  <link rel="stylesheet" href="./styles.css?v=8" />
+  <link rel="stylesheet" href="./dashboard.css?v=8" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="./supabase-config.js?v=4" defer></script>
   <script src="./questions.js?v=4" defer></script>
   <script src="./cloud.js?v=6" defer></script>
   <script src="./presentation.js?v=6" defer></script>
-  <script src="./dashboard.js?v=7" defer></script>
+  <script src="./dashboard.js?v=8" defer></script>
 </head>
 <body>
   <main class="dashboard">
     <header class="dashboard-header"><a class="wordmark" id="widget-link" href="./?mode=box" target="_blank" rel="noopener noreferrer"><span class="small-star" aria-hidden="true">✳</span> 留一个问题 ↗</a><span class="connection" id="connection">本地题库</span></header>
     <section class="dashboard-intro"><p class="eyebrow">QUESTION LIBRARY</p><h1>问题库</h1></section>
-    <section class="workspace">
+    <section class="workspace" id="preview-workspace">
       <div class="preview-panel">
         <iframe id="widget-preview" title="问题主页预览" src="about:blank" referrerpolicy="no-referrer"></iframe>
       </div>

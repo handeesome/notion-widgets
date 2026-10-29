@@ -69,7 +69,9 @@
     if (event.origin !== location.origin || event.source !== $("widget-preview").contentWindow) return;
     const data = event.data;
     if (data?.type === "question-preview-size" && Number.isFinite(data.height) && data.height >= 320 && data.height <= 1200) {
-      $("widget-preview").style.height = `${Math.ceil(data.height)}px`; return;
+      $("widget-preview").style.height = `${Math.ceil(data.height)}px`;
+      if (Number.isFinite(data.cardTop) && data.cardTop >= 0 && data.cardTop <= 600) $("preview-workspace").style.setProperty("--preview-card-top", `${Math.round(data.cardTop)}px`);
+      return;
     }
     if (!ready || data?.type !== "question-preview-edit" || typeof data.value !== "string" || data.value.length > 100) return;
     if (data.key === "mode" ? !["card", "box"].includes(data.value) : !copyKeys.has(data.key)) return;

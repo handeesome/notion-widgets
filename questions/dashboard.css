@@ -33,7 +33,8 @@
 .workspace { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(260px,1fr); gap:38px; align-items:start; margin:0 0 38px; }
 .preview-panel { min-width:0; }
 #widget-preview { display:block; width:100%; height:420px; border:0; background:var(--bg); }
-.add-panel { gap:18px; min-height:290px; margin:24px 4px 0; padding:34px 24px 22px; }
+.add-panel { gap:18px; min-height:290px; margin:var(--preview-card-top,86px) 4px 0; padding:34px 24px 22px; }
+.question-row.add-panel { transform:none; }
 .add-panel h2 { margin:0; font-family:"Songti SC",SimSun,serif; font-size:20px; font-weight:400; }
 .add-panel label { display:block; color:var(--muted); font-size:12px; margin-bottom:10px; }
 .add-panel textarea { width:100%; min-height:110px; resize:none; overflow:hidden; padding:4px 0; border:0; border-radius:0; background:transparent; color:var(--ink); font-family:"Songti SC",SimSun,serif; font-size:17px; line-height:1.9; }

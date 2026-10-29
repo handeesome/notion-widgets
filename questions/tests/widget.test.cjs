@@ -19,12 +19,12 @@ function setup({ questions=['甲','乙','丙'], stored=null, search='', reduced=
     document,
     location:{search,origin:'https://widgets.test'},URLSearchParams,localStorage:{getItem(){if(blocked)throw Error('blocked');return persisted;},setItem(k,v){if(blocked)throw Error('blocked');persisted=v;}},
     matchMedia:()=>({matches:reduced}),setTimeout(fn){const id=++timerId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),setInterval(){return 1;},clearInterval(){},Date});
-  return {el,events,messages,document,receive:(data)=>events.message({origin:'https://widgets.test',source:parent,data}),fire:(id,type='click')=>el(id).handlers[type](),flush(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(persisted),snapshot:()=>persisted};
+  return {el,events,messages,document,receive:(data)=>events.message({origin:'https://widgets.test',source:parent,data}),fire:(id,type='click',event)=>el(id).handlers[type](event),step(){const [id,fn]=timers.entries().next().value;timers.delete(id);fn();},flush(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(persisted),snapshot:()=>persisted};
 }
 function server() {
   let deck={questions:['云甲','云乙','云丙'],remaining:[0,1,2],current:null,revealed:false,revision:0};
   let fail=false;const listeners=[];
-  return {fail:()=>{fail=true;},deck:()=>clone(deck),service:{
+  return {fail:()=>{fail=true;},settings(value){deck.settings=value;deck.last_action='settings';deck.revision++;listeners.forEach(fn=>fn());},deck:()=>clone(deck),service:{
     async load(){if(fail)throw Error('连接中断');return clone(deck);},
     async change(action,rev,{reveal=false}={}){if(fail)throw Error('连接中断');if(rev!==deck.revision)return {status:'conflict',deck:clone(deck)};
       if(action==='draw'){if(!deck.remaining.length)deck.remaining=[0,1,2].filter(i=>i!==deck.current);deck.current=deck.remaining.shift();deck.revealed=reveal;} else deck.revealed=true;
@@ -60,12 +60,12 @@ test('home copy and default appearance load from settings while URL overrides re
 
 test('preview uses only a placeholder and never reads or writes cloud questions or local progress',async()=>{
   let writes=0;let reads=0;const service={async load(){reads++;throw Error('preview read questions');},async change(){writes++;throw Error('preview wrote to cloud');},subscribe(){return()=>{};}};
-  const p=setup({service,search:'?id=shared&preview=1',reduced:true});await tick();assert.equal(p.el('card').classList.contains('is-revealed'),false);await p.fire('preview-flip');assert.equal(p.el('question-text').textContent,'这里会显示抽到的问题。');assert.equal(writes,0);assert.equal(reads,0);assert.equal(p.snapshot(),null);assert.equal(p.el('preview-label').hidden,false);
+  const p=setup({service,search:'?id=shared&preview=1',reduced:true});await tick();assert.equal(p.el('card').classList.contains('is-revealed'),false);await p.fire('card-action');assert.equal(p.el('question-text').textContent,'这里会显示抽到的问题。');assert.equal(writes,0);assert.equal(reads,0);assert.equal(p.snapshot(),null);assert.equal(p.el('preview-label').hidden,false);
   const q=setup({search:'?preview=1',reduced:true});q.fire('card-action');assert.equal(q.snapshot(),null);assert.equal(q.el('manage-questions').hidden,true);
 });
 
 test('a parent settings update does not close an already opened preview',()=>{
-  const p=setup({search:'?preview=1',reduced:true});p.fire('preview-flip');p.receive({type:'question-preview',ready:true,settings:{backBottom:'慢慢聊'}});
+  const p=setup({search:'?preview=1',reduced:true});p.fire('card-action');p.receive({type:'question-preview',ready:true,settings:{backBottom:'慢慢聊'}});
   assert.equal(p.el('card').classList.contains('is-revealed'),true);assert.equal(p.el('card-note').textContent,'慢慢聊');
 });
 
@@ -73,7 +73,24 @@ test('preview toggle sends the selected default and inline typing keeps the care
   const p=setup({search:'?preview=1',reduced:true});p.receive({type:'question-preview',ready:true,settings:{mode:'box'}});p.fire('mode-toggle');assert.deepEqual(p.messages.at(-1),{type:'question-preview-edit',key:'mode',value:'card',commit:true});
   const text=p.el('invitation-title');p.document.activeElement=text;text.textContent='新文案';text.handlers.input({isComposing:false});assert.deepEqual(p.messages.at(-1),{type:'question-preview-edit',key:'invitation',value:'新文案',commit:false});
   p.receive({type:'question-preview',ready:true,settings:{invitation:'旧响应',mode:'card'}});assert.equal(text.textContent,'新文案');assert.equal(text.contentEditable,'plaintext-only');text.handlers.blur();assert.equal(p.messages.at(-1).commit,true);assert.equal(p.snapshot(),null);
-  p.document.activeElement=null;p.fire('preview-flip');assert.equal(text.tabIndex,-1);assert.equal(text.contentEditable,'false');assert.equal(p.el('back-top').tabIndex,0);
+  p.document.activeElement=null;p.fire('card-action');assert.equal(text.tabIndex,-1);assert.equal(text.contentEditable,'false');assert.equal(p.el('back-top').tabIndex,0);
+});
+
+test('preview center clicks animate while clicks on editable copy remain editing only',()=>{
+  const p=setup({search:'?preview=1'});p.receive({type:'question-preview',ready:true,settings:{mode:'box'}});
+  p.fire('invitation-content','click',{target:{closest:()=>p.el('invitation-title')}});assert.equal(p.el('card').classList.contains('box-opening'),false);
+  const event={target:{closest:()=>null}};p.fire('invitation-content','click',event);assert.equal(p.el('card').classList.contains('box-opening'),true);p.flush();
+  p.fire('question-content','click',event);assert.equal(p.el('card').classList.contains('box-resetting'),true);
+  p.receive({type:'question-preview',ready:true,settings:{mode:'box',backBottom:'慢慢聊'}});assert.equal(p.el('card').classList.contains('box-resetting'),true);assert.equal(p.el('card-action').disabled,true);
+  p.events.storage({key:'notion-question-cards-v1'});assert.equal(p.el('card').classList.contains('box-resetting'),true);
+  p.flush();assert.equal(p.el('card').classList.contains('is-revealed'),false);assert.equal(p.el('card-action').disabled,false);assert.equal(p.snapshot(),null);
+});
+
+test('returning to a sealed box keeps the old question during exit and blocks duplicate draws',()=>{
+  const p=setup();p.fire('card-action');p.flush();const text=p.el('question-text').textContent;p.fire('card-action');const snapshot=p.snapshot();
+  assert.equal(p.el('card').classList.contains('box-resetting'),true);assert.equal(p.el('question-text').textContent,text);assert.equal(p.el('card-action').disabled,true);p.fire('card-action');assert.equal(p.snapshot(),snapshot);
+  p.step();assert.equal(p.el('card').classList.contains('is-revealed'),false);assert.equal(p.el('question-text').textContent,'');assert.equal(p.el('card-action').disabled,true);
+  p.step();assert.equal(p.el('card').classList.contains('box-resetting'),false);assert.equal(p.el('card-action').disabled,false);assert.equal(p.saved().revealed,false);
 });
 
 test('home toggle uses one switch and preserves the shared deck state',()=>{
@@ -95,6 +112,9 @@ test('box mode opens the lid before showing the question, without flipping the c
   assert.equal(a.el('card').classList.contains('box-opening'),true);assert.equal(b.el('card').classList.contains('box-opening'),true);
   assert.equal(a.el('card').classList.contains('is-revealed'),false);assert.equal(a.el('question-text').textContent,'');
   a.flush();b.flush();assert.equal(a.el('card').classList.contains('is-revealed'),true);assert.equal(a.el('question-text').textContent,b.el('question-text').textContent);
+  await a.fire('card-action');await tick();assert.equal(a.el('card').classList.contains('box-resetting'),true);assert.equal(b.el('card').classList.contains('box-resetting'),true);
+  s.settings({backBottom:'慢慢聊'});await tick();assert.equal(a.el('card').classList.contains('box-resetting'),true);assert.equal(b.el('card').classList.contains('box-resetting'),true);
+  a.flush();b.flush();assert.equal(a.el('card').classList.contains('is-revealed'),false);assert.equal(b.el('card').classList.contains('is-revealed'),false);
 });
 test('a late arriving device restores a result without replaying its animation',async()=>{
   const s=server();const a=setup({search:'?id=shared',service:s.service});await tick();await a.fire('card-action');await tick();
