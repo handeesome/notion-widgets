@@ -39,6 +39,7 @@
 .add-panel label { display:block; color:var(--muted); font-size:12px; margin-bottom:10px; }
 .add-panel textarea { width:100%; min-height:110px; resize:none; overflow:hidden; padding:4px 0; border:0; border-radius:0; background:transparent; color:var(--ink); font-family:"Songti SC",SimSun,serif; font-size:17px; line-height:1.9; }
 .add-panel textarea::placeholder { color:var(--muted); opacity:.75; }
+.add-panel textarea:focus { outline:none; box-shadow:none; }
 .add-actions { display:flex; align-items:center; justify-content:flex-end; gap:14px; margin-top:auto; }
 .add-actions .primary { min-height:34px; padding:7px 12px; }
 @media(max-width:760px) { .workspace { grid-template-columns:1fr; gap:20px; } .preview-panel { max-width:580px; width:100%; margin:auto; } .add-panel { margin:0 4px; } }

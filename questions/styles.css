@@ -57,6 +57,7 @@ a { color:inherit; }
 .preview-copy:focus { outline-color:var(--accent); }
 .preview-copy:empty::before { content:attr(data-placeholder); color:var(--muted); opacity:.6; }
 .preview-label { margin:0 0 8px; font-size:10px; color:var(--muted); letter-spacing:.08em; }
+.preview-heading { margin:0 0 14px; color:var(--muted); font-size:11px; line-height:18px; }
 .preview-mode .card-action { pointer-events:none; }
 .preview-mode .card-content { cursor:pointer; }
 .preview-mode .card-bottom { padding-right:0; }

@@ -6,16 +6,17 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="referrer" content="no-referrer" />
   <title>留一个问题 · 问题盲盒</title>
-  <link rel="stylesheet" href="./styles.css?v=8" />
+  <link rel="stylesheet" href="./styles.css?v=9" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="./supabase-config.js?v=4" defer></script>
   <script src="./questions.js?v=4" defer></script>
   <script src="./cloud.js?v=6" defer></script>
   <script src="./presentation.js?v=6" defer></script>
-  <script src="./app.js?v=8" defer></script>
+  <script src="./app.js?v=9" defer></script>
 </head>
 <body>
   <main class="widget">
+    <p class="preview-heading" id="preview-heading" hidden>预览可修改</p>
     <header class="toolbar">
       <span class="wordmark"><span class="small-star" aria-hidden="true">✳</span><span id="widget-name">留一个问题</span></span>
       <div class="mode-switch"><button id="mode-toggle" type="button" role="switch" aria-label="盲盒模式" aria-checked="true"><span class="toggle-thumb" aria-hidden="true"></span><span class="mode-option">卡片</span><span class="mode-option">盲盒</span></button></div>

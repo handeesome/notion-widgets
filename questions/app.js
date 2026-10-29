@@ -203,6 +203,7 @@
     document.documentElement.classList.add("preview-mode");
     $("manage-questions").hidden = true;
     $("preview-label").hidden = false;
+    $("preview-heading").hidden = false;
     for (const id of ["invitation-content", "question-content"]) $(id).addEventListener("click", (event) => {
       if (event.target.closest(".preview-copy")) return;
       activateCard();
