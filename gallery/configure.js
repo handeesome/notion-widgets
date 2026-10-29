@@ -204,15 +204,17 @@ async function initialize() {
 async function addFiles(files) {
   if (!ready) return;
   const availableSlots = 20 - config.images.length;
-  const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+  const imageFiles = files.filter(window.GalleryImages.isImageFile);
 
   if (availableSlots <= 0) {
+    setConnectionState("error", "You can add up to 20 images.");
     announce("You can add up to 20 images.");
     return;
   }
 
   const acceptedFiles = imageFiles.slice(0, availableSlots);
   if (acceptedFiles.length === 0) {
+    setConnectionState("error", "Choose an image file to upload.");
     announce("Choose an image file to upload.");
     return;
   }
@@ -223,7 +225,7 @@ async function addFiles(files) {
 
   try {
     for (const file of acceptedFiles) {
-      const prepared = await prepareImage(file);
+      const prepared = await window.GalleryImages.prepareImage(file);
       const image = await window.GalleryData.uploadImage(
         client,
         galleryId,
@@ -246,8 +248,9 @@ async function addFiles(files) {
     reflectConfig();
     renderImages();
     await Promise.allSettled(uploaded.map((image) => window.GalleryData.removeImage(client, image.path)));
-    setConnectionState("error", "Couldn’t add the image. Try again.");
-    announce("Couldn’t add the image. Choose another file and try again.");
+    const message = imageUploadErrorMessage(error);
+    setConnectionState("error", message);
+    announce(message);
   } finally {
     uploadButton.disabled = false;
     uploadButton.innerHTML = '<span aria-hidden="true">＋</span> Upload images';
@@ -256,7 +259,8 @@ async function addFiles(files) {
 
 async function replaceImage(id, file) {
   if (!ready) return;
-  if (!file.type.startsWith("image/")) {
+  if (!window.GalleryImages.isImageFile(file)) {
+    setConnectionState("error", "Choose an image file to upload.");
     announce("Choose an image file to upload.");
     return;
   }
@@ -268,7 +272,7 @@ async function replaceImage(id, file) {
 
   try {
     setConnectionState("saving", "Uploading replacement…");
-    const prepared = await prepareImage(file);
+    const prepared = await window.GalleryImages.prepareImage(file);
     nextImage = await window.GalleryData.uploadImage(
       client,
       galleryId,
@@ -288,8 +292,9 @@ async function replaceImage(id, file) {
     reflectConfig();
     renderImages();
     if (nextImage) await window.GalleryData.removeImage(client, nextImage.path).catch(() => {});
-    setConnectionState("error", "Couldn’t replace the image. Try again.");
-    announce("Couldn’t replace the image. Choose another file and try again.");
+    const message = imageUploadErrorMessage(error);
+    setConnectionState("error", message);
+    announce(message);
   }
 }
 
@@ -601,34 +606,15 @@ async function removeImage(id) {
   }
 }
 
-async function prepareImage(file) {
-  const source = await loadImage(file);
-  const maxDimension = 1800;
-  const scale = Math.min(1, maxDimension / Math.max(source.naturalWidth, source.naturalHeight));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(source.naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(source.naturalHeight * scale));
-  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
-  const blob = await new Promise((resolve, reject) => {
-    canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Image could not be converted"))), "image/webp", 0.86);
-  });
-  return { blob };
-}
-
-function loadImage(file) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const url = URL.createObjectURL(file);
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Image could not be read"));
-    };
-    image.src = url;
-  });
+function imageUploadErrorMessage(error) {
+  if (error.code === "IMAGE_PREPARATION_FAILED") return error.message;
+  if (/mime|content.?type|invalid gallery image/i.test(error.message || "")) {
+    return "This gallery’s upload rules need updating. Ask its owner to run the image-format migration.";
+  }
+  if (String(error.statusCode) === "413" || /maximum.*size|too large|size limit/i.test(error.message || "")) {
+    return "This photo is too large to upload. Try a smaller copy.";
+  }
+  return "Couldn’t upload or save the photo. Check your connection and try again.";
 }
 
 function renderPaletteGroups() {

@@ -115,8 +115,8 @@
               <button class="upload-button" type="button" data-upload-button>
                 <span aria-hidden="true">＋</span> Upload images
               </button>
-              <input type="file" accept="image/*" multiple hidden data-upload-input />
-              <input type="file" accept="image/*" hidden data-replace-input />
+              <input type="file" accept="image/*,.heic,.heif" multiple hidden data-upload-input />
+              <input type="file" accept="image/*,.heic,.heif" hidden data-replace-input />
             </div>
 
             <label class="field">
@@ -295,7 +295,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <script src="./supabase-config.js?v=1" defer></script>
     <script src="./gallery-config.js?v=4" defer></script>
-    <script src="./gallery-data.js?v=1" defer></script>
-    <script src="./configure.js?v=7" defer></script>
+    <script src="./gallery-data.js?v=2" defer></script>
+    <script src="./gallery-images.js?v=1" defer></script>
+    <script src="./configure.js?v=8" defer></script>
   </body>
 </html>

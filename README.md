@@ -29,6 +29,8 @@ python -m http.server 4174
 
 图库配置页支持鼠标和触摸拖拽排序：卡片浮起跟随移动，相邻卡片实时平滑让位，松手后自动保存。长列表支持边缘自动滚动，按 Esc 可取消拖拽，也可聚焦卡片后用 Alt + ↑ / ↓ 调整顺序。
 
+图库上传会按浏览器实际输出保存为 WebP 或 PNG；不支持 WebP 编码的浏览器会使用 PNG。HEIC 照片依赖浏览器原生解码，无法读取时会提示先导出为 JPEG 或 PNG。已有 Supabase 项目需先运行[图片格式升级 SQL](./gallery/supabase-image-formats-migration.sql)，再部署新版页面；详见[图库文档](./gallery/README.md)。
+
 ## 部署与嵌入
 
 1. 将仓库部署到 GitHub Pages、Cloudflare Pages 或其他静态托管服务。

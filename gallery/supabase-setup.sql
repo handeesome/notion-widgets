@@ -104,8 +104,10 @@ begin
   loop
     if jsonb_typeof(image_item) is distinct from 'object'
        or coalesce(image_item ->> 'id', '') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-       or coalesce(image_item ->> 'path', '') is distinct from
-          (p_id::text || '/' || (image_item ->> 'id') || '.webp')
+       or coalesce(image_item ->> 'path', '') not in (
+          p_id::text || '/' || (image_item ->> 'id') || '.webp',
+          p_id::text || '/' || (image_item ->> 'id') || '.png'
+       )
        or length(coalesce(image_item ->> 'name', '')) > 300
        or length(coalesce(image_item ->> 'alt', '')) > 500 then
       raise exception 'Invalid gallery image';
@@ -140,7 +142,7 @@ values (
   'gallery-images',
   true,
   8388608,
-  array['image/webp']::text[]
+  array['image/webp', 'image/png']::text[]
 )
 on conflict (id) do update set
   public = excluded.public,
@@ -169,7 +171,7 @@ with check (
   and gallery_private.gallery_exists(gallery_private.request_gallery_id())
   and name ~ (
     '^' || gallery_private.request_gallery_id()
-    || '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$'
+    || '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(webp|png)$'
   )
 );
 

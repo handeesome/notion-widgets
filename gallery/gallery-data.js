@@ -57,11 +57,13 @@
   }
 
   async function uploadImage(client, galleryId, blob, name, alt) {
+    const extension = { "image/webp": "webp", "image/png": "png" }[blob.type];
+    if (!extension) throw new Error("Unsupported image content type");
     const imageId = crypto.randomUUID();
-    const path = `${galleryId}/${imageId}.webp`;
+    const path = `${galleryId}/${imageId}.${extension}`;
     const { error } = await client.storage.from(connection.bucket).upload(path, blob, {
       cacheControl: "31536000",
-      contentType: "image/webp",
+      contentType: blob.type,
       upsert: false,
     });
     if (error) throw error;
