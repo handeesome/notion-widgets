@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="referrer" content="no-referrer" />
+  <title>管理问题 · 留一个问题</title>
+  <link rel="stylesheet" href="./styles.css?v=4" />
+  <link rel="stylesheet" href="./dashboard.css?v=4" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="./supabase-config.js?v=4" defer></script>
+  <script src="./questions.js?v=4" defer></script>
+  <script src="./cloud.js?v=4" defer></script>
+  <script src="./dashboard.js?v=4" defer></script>
+</head>
+<body>
+  <main class="dashboard">
+    <header class="dashboard-header"><a class="wordmark" id="widget-link" href="./?mode=box" target="_blank" rel="noopener noreferrer"><span class="small-star" aria-hidden="true">✳</span> 留一个问题 ↗</a><span class="connection" id="connection">本地题库</span></header>
+    <section class="dashboard-intro"><p class="eyebrow">QUESTION LIBRARY</p><h1>把想聊的问题，放在这里。</h1><p>每条问题单独隐藏，点击旁边的眼睛查看或修改。</p></section>
+    <div class="dashboard-toolbar"><span id="question-count"></span><div class="toolbar-actions"><button class="secondary" id="reload" type="button">重新载入</button><button class="primary" id="save" type="button" disabled>保存修改</button></div></div>
+    <p class="dashboard-status" id="status" role="status"></p>
+    <section id="question-rows" class="question-rows" aria-label="问题列表"></section>
+    <section class="add-panel"><h2>再放进几个问题</h2><label for="new-questions">每行一个问题，最多 500 字</label><textarea id="new-questions" rows="3" placeholder="写下一个想一起探讨的问题…" maxlength="250500"></textarea><div class="add-actions"><button class="text-button" id="import-local" type="button" hidden>导入此设备的本地题库</button><button class="secondary" id="add" type="button">添加到列表</button></div></section>
+    <p class="dashboard-help" id="help">修改保存在当前浏览器，保存后重新开始一轮。</p>
+    <p class="dashboard-help">眼睛按钮用于避免提前看到题目，不是密码或加密。</p>
+  </main>
+</body>
+</html>

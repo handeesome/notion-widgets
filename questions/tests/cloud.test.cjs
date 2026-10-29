@@ -1,0 +1,12 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('questions/cloud.js','utf8');
+const ID='11111111-1111-4111-8111-111111111111';
+const base=()=>({questions:['甲'],items:[{id:ID,text:'甲',created_at:'2026-10-29T10:00:00.000Z'}],remaining:[0],current:null,revealed:false,revision:0});
+function setup(result=base(),status=200){const calls=[];const context={window:{QuestionSupabaseConfig:{url:'https://example.supabase.co',publishableKey:'sb_publishable_example'}},URLSearchParams,AbortController,Date,setTimeout:()=>1,clearTimeout(){},fetch:async(url,options)=>{calls.push({url,options});return{ok:status===200,status,json:async()=>result};}};vm.runInNewContext(source,context);return{api:context.window.QuestionCloud,calls};}
+test('RPC sends the capability header, publishable key and expected version',async()=>{const s=setup({status:'ok',deck:base()});await s.api.create('?id='+ID).change('edit',4,{questions:[{id:ID,text:'甲'}]});const request=s.calls[0];assert.equal(request.options.headers['x-question-deck'],ID);assert.equal(request.options.headers.apikey,'sb_publishable_example');assert.equal(request.options.referrerPolicy,'no-referrer');assert.equal(JSON.parse(request.options.body).p_revision,4);assert.equal(request.options.headers.Authorization,undefined);});
+test('missing ID stays local and an invalid capability never starts a request',async()=>{const s=setup();assert.equal(s.api.create(''),null);await assert.rejects(s.api.create('?id=invalid').load(),/ID/);assert.equal(s.calls.length,0);});
+test('missing RPC, missing deck and malformed state produce visible errors',async()=>{await assert.rejects(setup(null,404).api.create('?id='+ID).load(),/初始化/);await assert.rejects(setup(null).api.create('?id='+ID).load(),/没有找到/);const bad=base();bad.remaining=[0,0];await assert.rejects(setup(bad).api.create('?id='+ID).load(),/进度/);const meta=base();meta.items[0].created_at='bad';await assert.rejects(setup(meta).api.create('?id='+ID).load(),/记录/);});
+test('a stale revision is returned as a conflict, never silently retried',async()=>{const s=setup({status:'conflict',deck:base()});const result=await s.api.create('?id='+ID).change('draw',0);assert.equal(result.status,'conflict');assert.equal(s.calls.length,1);});

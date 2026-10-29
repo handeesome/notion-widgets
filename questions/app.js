@@ -1,226 +1,152 @@
 (() => {
   "use strict";
-
-  const STORAGE_KEY = "notion-question-cards-v1";
-  const MAX_QUESTIONS = 500;
-  const MAX_LENGTH = 500;
+  const KEY = "notion-question-cards-v1";
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
+  const cloudMode = params.has("id");
+  const cloud = cloudMode ? window.QuestionCloud?.create(location.search) : null;
   const theme = params.get("theme");
   if (["light", "dark"].includes(theme)) document.documentElement.dataset.theme = theme;
-
-  function cleanQuestions(value) {
-    return Array.isArray(value)
-      ? [...new Set(value.filter((q) => typeof q === "string").map((q) => q.trim()).filter(Boolean))]
-      : [];
-  }
-
-  const defaults = cleanQuestions(window.QUESTION_CARDS);
-  let saved = null;
-  let storageAvailable = true;
-  try {
-    saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-  } catch {
-    storageAvailable = false;
-  }
-  const custom = cleanQuestions(saved?.questions);
-  let questions = custom.length ? custom : defaults;
-  let mode = params.get("mode") || saved?.mode;
-  if (!["card", "box"].includes(mode)) mode = "box";
-  let remaining = [];
+  const manageParams = new URLSearchParams();
+  if (cloudMode) manageParams.set("id", params.get("id"));
+  if (["light", "dark"].includes(theme)) manageParams.set("theme", theme);
+  $("manage-questions").href = `./dashboard.html${manageParams.size ? `?${manageParams}` : ""}`;
+  const defaults = [...new Set((window.QUESTION_CARDS || []).filter((q) => typeof q === "string").map((q) => q.trim()).filter(Boolean))];
+  let questions = cloudMode ? [] : defaults;
+  let customQuestions = null;
+  let questionMeta = [];
+  let remaining = questions.map((_, i) => i);
   let current = null;
   let revealed = false;
-  let busy = false;
-  let revealTimer;
-  // Only restore a deck when its source list still matches, including changed deployment defaults.
-  if (saved && JSON.stringify(saved.source) === JSON.stringify(questions)) {
-    const validIndex = (i) => Number.isInteger(i) && i >= 0 && i < questions.length;
-    if (Array.isArray(saved.remaining) && saved.remaining.every(validIndex)
-      && new Set(saved.remaining).size === saved.remaining.length
-      && (saved.current === null || (validIndex(saved.current) && !saved.remaining.includes(saved.current)))) {
-      remaining = saved.remaining;
-      current = saved.current;
-      revealed = current !== null && saved.revealed !== false;
-    }
-  }
-  if (current === null) remaining = questions.map((_, i) => i);
+  let mode = params.get("mode") || "box";
+  let revision = -1;
+  let ready = !cloudMode;
+  let writing = false;
+  let syncing = false;
+  let queued = false;
+  let live = false;
+  let flipping = false;
+  let flipTimer;
 
-  function storageWarning() {
+  function warning() {
     $("storage-note").hidden = false;
-    $("storage-note").textContent = "当前浏览器无法保存进度，刷新后会重置。你仍然可以继续抽取。";
+    $("storage-note").textContent = "当前浏览器无法保存进度，刷新后会重置。";
   }
-
-  function persist() {
+  function loadLocal() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        questions: customQuestions, source: questions, mode, remaining, current, revealed,
-      }));
-    } catch {
-      storageAvailable = false;
-      storageWarning();
-    }
+      const saved = JSON.parse(localStorage.getItem(KEY));
+      const custom = Array.isArray(saved?.questions) ? saved.questions.filter((q) => typeof q === "string" && q.trim()) : [];
+      questions = custom.length ? [...new Set(custom)] : defaults;
+      customQuestions = custom.length ? questions : null;
+      questionMeta = Array.isArray(saved?.questionMeta) ? saved.questionMeta : [];
+      remaining = questions.map((_, i) => i); current = null; revealed = false;
+      if (!params.has("mode") && ["card", "box"].includes(saved?.mode)) mode = saved.mode;
+      const valid = (i) => Number.isInteger(i) && i >= 0 && i < questions.length;
+      if (JSON.stringify(saved?.source) === JSON.stringify(questions) && Array.isArray(saved.remaining)
+        && saved.remaining.every(valid) && new Set(saved.remaining).size === saved.remaining.length
+        && (saved.current === null || (valid(saved.current) && !saved.remaining.includes(saved.current)))) {
+        remaining = saved.remaining; current = saved.current; revealed = current !== null && saved.revealed !== false;
+      }
+      if (current === null) remaining = questions.map((_, i) => i);
+    } catch { warning(); }
   }
-
-  let customQuestions = custom.length ? questions : null;
-
-  function render() {
+  function persist() {
+    if (cloudMode) return;
+    try { localStorage.setItem(KEY, JSON.stringify({ questions: customQuestions, questionMeta, source: questions, mode, remaining, current, revealed })); }
+    catch { warning(); }
+  }
+  function message(text) { $("sync-status").textContent = text; }
+  function connected() { message(live ? "云端已连接 · 实时同步" : "云端已连接 · 定时同步"); }
+  function render(animate = false) {
     document.documentElement.dataset.mode = mode;
     document.querySelectorAll('[name="mode"]').forEach((input) => { input.checked = input.value === mode; });
-    const hasQuestion = current !== null && revealed;
-    const sealed = current !== null && !revealed;
-    $("invitation").hidden = hasQuestion;
-    $("question").hidden = !hasQuestion;
-    $("question-text").textContent = hasQuestion ? questions[current] : "";
-    $("invitation-title").textContent = sealed ? "问题已经在盒子里了。"
-      : mode === "box" ? "抽一个盲盒，留一点好奇。" : "从一个问题，慢慢聊起。";
-    $("invitation-note").textContent = sealed
-      ? mode === "box" ? "准备好了，就点一下盒子。" : "点击下方按钮，展开这张问题卡。"
-      : "不急着回答，也不必有标准答案。";
-    $("card-label").textContent = hasQuestion ? "留给此刻的问题" : "一段对话的开始";
-    $("card-note").textContent = hasQuestion ? "听听彼此的答案" : "给彼此一点思考的时间";
-    $("draw-label").textContent = !questions.length ? "还没有问题"
-      : sealed ? mode === "box" ? "点击盒子打开" : "展开这张卡片"
-        : hasQuestion && !remaining.length ? "开始新一轮"
-        : mode === "box" ? (hasQuestion ? "再抽一个盲盒" : "抽一个盲盒")
-          : hasQuestion ? "再抽一张" : "抽一张问题卡";
-    $("draw").disabled = busy || !questions.length || (sealed && mode === "box");
-    $("open-box").disabled = busy || !sealed || mode !== "box";
-    $("progress").textContent = !questions.length ? "点击「编辑问题」添加"
-      : sealed ? `本轮已抽 ${questions.length - remaining.length} / ${questions.length} · 待打开`
-        : !hasQuestion ? `${questions.length} 个问题 · 随机相遇`
-        : remaining.length ? `本轮已抽 ${questions.length - remaining.length} / ${questions.length}`
-          : `本轮 ${questions.length} 个问题已抽完`;
-    if (!questions.length) {
-      $("invitation-title").textContent = "放进几个想聊的问题吧。";
-      $("invitation-note").textContent = "点击下方「编辑问题」，每行写一个。";
+    const open = current !== null && revealed;
+    const card = $("card");
+    const changed = card.classList.contains("is-revealed") !== open;
+    if (!animate) card.classList.add("no-motion");
+    card.classList.toggle("is-revealed", open);
+    $("card-front").setAttribute("aria-hidden", String(open));
+    $("card-back").setAttribute("aria-hidden", String(!open));
+    if (open) $("question-text").textContent = questions[current];
+    else if (!animate || !changed) $("question-text").textContent = "";
+    $("card-note").textContent = mode === "box" ? "听听彼此的答案 · 轻点换一个盲盒" : "听听彼此的答案 · 轻点换一个问题";
+    $("invitation-title").textContent = ready ? "留一点好奇，打开聊聊。" : "连接你的问题盲盒。";
+    $("invitation-note").textContent = !questions.length && ready ? "点右下角图标，放进想聊的问题。" : "轻点卡片，打开一个问题。";
+    $("card-action").setAttribute("aria-label", open ? mode === "box" ? "抽取下一个盲盒" : "抽取下一个问题" : "打开这个盲盒");
+    if (!animate) { void card.offsetWidth; card.classList.remove("no-motion"); }
+    if (changed && animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      flipping = true;
+      clearTimeout(flipTimer);
+      flipTimer = setTimeout(() => { flipping = false; if (!revealed) $("question-text").textContent = ""; updateDisabled(); }, 650);
+    }
+    updateDisabled();
+  }
+  function updateDisabled() {
+    $("card-action").disabled = !ready || writing || flipping || !questions.length;
+    document.querySelector(".card-scene").setAttribute("aria-busy", String(writing));
+  }
+  function applyDeck(deck, animate) {
+    if (deck.revision <= revision) return;
+    const wasLoaded = revision >= 0;
+    questions = deck.questions; remaining = deck.remaining; current = deck.current;
+    revealed = deck.revealed; revision = deck.revision;
+    render(animate && wasLoaded && !document.hidden);
+  }
+  async function refresh(animate = false) {
+    if (writing || syncing) { queued = true; return; }
+    syncing = true;
+    try {
+      if (!cloud) throw new Error("云端服务未能启动，请刷新重试。");
+      const deck = await cloud.load(); ready = true; applyDeck(deck, animate); connected();
+    } catch (error) { ready = false; message(error.message); }
+    finally {
+      syncing = false; updateDisabled();
+      if (queued) { queued = false; void refresh(true); }
     }
   }
-
-  function animateQuestion() {
-    const card = document.querySelector(".card");
-    card.classList.remove("revealing");
-    void card.offsetWidth;
-    card.classList.add("revealing");
+  async function change(action, openImmediately = false) {
+    if (!ready || writing || flipping) return;
+    writing = true; updateDisabled(); message("正在同步…");
+    try {
+      const result = await cloud.change(action, revision, { reveal: openImmediately });
+      applyDeck(result.deck, true);
+      if (result.status === "conflict") message("另一台设备刚刚更新了进度。已显示最新状态，请再点击卡片。");
+      else connected();
+    } catch (error) { ready = false; message(`${error.message} 请重新同步以确认结果。`); }
+    finally { writing = false; updateDisabled(); if (queued) { queued = false; void refresh(true); } }
   }
-
-  function selectQuestion() {
-    // Start a fresh round only after the user asks for it. Avoid an immediate repeat across rounds.
+  function drawLocal(openImmediately) {
     const previous = current;
     const newRound = !remaining.length;
     if (newRound) remaining = questions.map((_, i) => i);
-    let candidates = remaining;
-    if (newRound && questions.length > 1) candidates = candidates.filter((i) => i !== previous);
+    const candidates = newRound && questions.length > 1 ? remaining.filter((i) => i !== previous) : remaining;
     current = candidates[Math.floor(Math.random() * candidates.length)];
-    remaining = remaining.filter((i) => i !== current);
-    revealed = mode === "card";
-    document.querySelector(".card").classList.remove("revealing");
-    render();
-    if (revealed) animateQuestion();
-    persist();
+    remaining = remaining.filter((i) => i !== current); revealed = openImmediately;
   }
-
-  function finishReveal() {
-    busy = false;
-    revealed = true;
-    const card = document.querySelector(".card");
-    card.classList.remove("opening");
-    card.setAttribute("aria-busy", "false");
-    render();
-    animateQuestion();
-    persist();
-  }
-
-  function openCurrent() {
-    if (busy || current === null || revealed) return;
-    const animateBox = mode === "box" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!animateBox) { finishReveal(); return; }
-    busy = true;
-    $("draw").disabled = true;
-    $("open-box").disabled = true;
-    $("draw-label").textContent = "正在打开…";
-    const card = document.querySelector(".card");
-    card.classList.remove("revealing");
-    card.classList.add("opening");
-    card.setAttribute("aria-busy", "true");
-    revealTimer = setTimeout(finishReveal, 600);
-  }
-
-  $("open-box").addEventListener("click", openCurrent);
-  $("draw").addEventListener("click", () => {
-    if (busy || !questions.length || (current !== null && !revealed && mode === "box")) return;
-    if (current !== null && !revealed) openCurrent();
-    else selectQuestion();
+  $("card-action").addEventListener("click", () => {
+    if (!ready || writing || flipping || !questions.length) return;
+    if (cloudMode) return current === null ? change("draw", true) : revealed ? change("draw", mode === "card") : change("reveal");
+    if (current === null) drawLocal(true);
+    else if (revealed) drawLocal(mode === "card");
+    else revealed = true;
+    render(true); persist();
   });
-
   document.querySelectorAll('[name="mode"]').forEach((input) => input.addEventListener("change", () => {
-    if (busy) {
-      clearTimeout(revealTimer);
-      busy = false;
-      document.querySelector(".card").classList.remove("opening");
-      document.querySelector(".card").setAttribute("aria-busy", "false");
-    }
-    mode = input.value;
-    render();
-    persist();
+    mode = input.value; render(false); persist();
   }));
-
-  let editorDraft = "";
-
-  function renderEditor(visible) {
-    $("question-list").hidden = !visible;
-    $("question-list").disabled = !visible;
-    $("question-list").value = visible ? editorDraft : "";
-    $("masked-questions").hidden = visible;
-    $("masked-questions").textContent = visible ? "" : Array.from(editorDraft, (char) => char === "\n" ? "\n" : "*").join("");
-    $("toggle-visibility").setAttribute("aria-pressed", String(visible));
-    $("toggle-visibility").setAttribute("aria-label", visible ? "隐藏问题" : "显示问题");
-    $("visibility-label").textContent = visible ? "隐藏问题" : "显示问题";
-    $("eye-slash").setAttribute("visibility", visible ? "visible" : "hidden");
+  if (cloudMode) {
+    $("sync-bar").hidden = false; message("正在连接云端…");
+    $("retry-sync").addEventListener("click", () => refresh(false));
+    void refresh(false);
+    const unsubscribe = cloud?.subscribe(() => { void refresh(true); }, (status) => { live = status; if (ready && !writing) connected(); });
+    const poll = setInterval(() => { if (!document.hidden) void refresh(true); }, 5000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) void refresh(false); });
+    window.addEventListener("focus", () => { void refresh(false); });
+    window.addEventListener("beforeunload", () => { unsubscribe?.(); clearInterval(poll); });
+  } else {
+    loadLocal();
+    window.addEventListener("storage", (event) => { if (event.key === KEY) { loadLocal(); render(false); } });
   }
-
-  $("toggle-visibility").addEventListener("click", () => {
-    const visible = !$("question-list").hidden;
-    if (visible) editorDraft = $("question-list").value;
-    renderEditor(!visible);
-  });
-  $("edit").addEventListener("click", () => {
-    editorDraft = questions.join("\n");
-    renderEditor(false);
-    $("editor-error").textContent = "";
-    $("editor").showModal();
-  });
-  $("close-editor").addEventListener("click", () => $("editor").close());
-  $("editor").addEventListener("close", () => {
-    editorDraft = "";
-    renderEditor(false);
-  });
-  $("restore").addEventListener("click", () => {
-    editorDraft = defaults.join("\n");
-    renderEditor(false);
-    $("editor-error").textContent = "已填入示例，点击「保存问题」后生效。";
-  });
-  $("editor-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (!$("question-list").hidden) editorDraft = $("question-list").value;
-    const next = cleanQuestions(editorDraft.split(/\r?\n/));
-    if (!next.length || next.length > MAX_QUESTIONS || next.some((q) => q.length > MAX_LENGTH)) {
-      $("editor-error").textContent = `请填写 1–${MAX_QUESTIONS} 个问题，每个不超过 ${MAX_LENGTH} 字。`;
-      return;
-    }
-    clearTimeout(revealTimer);
-    busy = false;
-    document.querySelector(".card").classList.remove("opening", "revealing");
-    document.querySelector(".card").setAttribute("aria-busy", "false");
-    questions = next;
-    customQuestions = JSON.stringify(next) === JSON.stringify(defaults) ? null : next;
-    remaining = questions.map((_, i) => i);
-    current = null;
-    revealed = false;
-    render();
-    persist();
-    $("editor").close();
-  });
-
-  if (!storageAvailable) storageWarning();
-  render();
+  if (!["card", "box"].includes(mode)) mode = "box";
+  render(false);
 })();
