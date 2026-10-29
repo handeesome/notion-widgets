@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>留一个问题 · 问题卡片</title>
+    <link rel="stylesheet" href="./styles.css?v=2" />
+    <script src="./questions.js?v=2" defer></script>
+    <script src="./app.js?v=2" defer></script>
+  </head>
+  <body>
+    <main class="widget">
+      <header class="toolbar">
+        <span class="wordmark"><span class="small-star" aria-hidden="true">✳</span> 留一个问题</span>
+        <fieldset class="mode-switch">
+          <legend class="sr-only">呈现方式</legend>
+          <label><input type="radio" name="mode" value="card" /><span>卡片</span></label>
+          <label><input type="radio" name="mode" value="box" checked /><span>盲盒</span></label>
+        </fieldset>
+      </header>
+
+      <section class="card" aria-label="问题卡片" aria-busy="false">
+        <div class="card-top"><span id="card-label">一段对话的开始</span><span class="card-mark" aria-hidden="true">↗</span></div>
+        <div class="card-content" aria-live="polite" aria-atomic="true">
+          <div class="invitation" id="invitation">
+            <div class="paper-symbol" aria-hidden="true"><span>?</span></div>
+            <button class="box-symbol" id="open-box" type="button" aria-label="打开这个盲盒" disabled>
+              <svg viewBox="0 0 120 116" fill="none" aria-hidden="true"><path class="box-lid" d="M24 40 60 22 96 40 60 58Z"/><path d="M24 47 60 65 96 47V83L60 102 24 83Z"/><path d="M60 65V102M42 56 78 38"/><path class="box-spark" d="M22 19v10m-5-5h10M96 9v12m-6-6h12M106 65v8m-4-4h8"/></svg>
+            </button>
+            <h1 id="invitation-title">抽一个盲盒，留一点好奇。</h1>
+            <p id="invitation-note">不急着回答，也不必有标准答案。</p>
+          </div>
+          <div class="question" id="question" hidden>
+            <span class="question-quote" aria-hidden="true">“</span>
+            <h1 id="question-text"></h1>
+          </div>
+        </div>
+        <div class="card-bottom"><span id="card-note">给彼此一点思考的时间</span><span class="dot" aria-hidden="true"></span></div>
+      </section>
+
+      <div class="actions">
+        <p id="progress" role="status"></p>
+        <button class="draw-button" id="draw" type="button"><span id="draw-label">抽一个盲盒</span><span aria-hidden="true">↗</span></button>
+      </div>
+      <footer class="footer"><span>一个问题，可以聊很久。</span><button type="button" class="text-button" id="edit">编辑问题</button></footer>
+      <p class="storage-note" id="storage-note" role="status" hidden></p>
+      <noscript>请启用 JavaScript 后抽取问题。</noscript>
+    </main>
+
+    <dialog id="editor" aria-labelledby="editor-title">
+      <form id="editor-form">
+        <div class="editor-heading"><h2 id="editor-title">想聊些什么？</h2><button type="button" class="close-button" id="close-editor" aria-label="关闭编辑">×</button></div>
+        <div class="editor-label-row">
+          <label for="question-list">每行一个问题</label>
+          <button class="visibility-button" id="toggle-visibility" type="button" aria-label="显示问题" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path id="eye-slash" d="m3 3 18 18" visibility="hidden"/></svg>
+            <span id="visibility-label">显示问题</span>
+          </button>
+        </div>
+        <p class="editor-help" id="editor-help">保存后重新开始抽取。修改只保存在当前浏览器，不会同步给其他人。</p>
+        <div class="masked-questions" id="masked-questions" role="region" aria-label="问题已隐藏，点击眼睛显示"></div>
+        <textarea id="question-list" rows="9" aria-describedby="editor-help editor-error" spellcheck="false" hidden disabled></textarea>
+        <p class="editor-error" id="editor-error" role="alert"></p>
+        <div class="editor-actions"><button type="button" class="text-button" id="restore">填入示例问题</button><button type="submit" class="save-button">保存问题</button></div>
+      </form>
+    </dialog>
+  </body>
+</html>
