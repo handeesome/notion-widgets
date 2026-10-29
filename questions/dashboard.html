@@ -6,19 +6,30 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="referrer" content="no-referrer" />
   <title>管理问题 · 留一个问题</title>
-  <link rel="stylesheet" href="./styles.css?v=5" />
-  <link rel="stylesheet" href="./dashboard.css?v=5" />
+  <link rel="stylesheet" href="./styles.css?v=6" />
+  <link rel="stylesheet" href="./dashboard.css?v=6" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="./supabase-config.js?v=4" defer></script>
   <script src="./questions.js?v=4" defer></script>
-  <script src="./cloud.js?v=4" defer></script>
-  <script src="./dashboard.js?v=5" defer></script>
+  <script src="./cloud.js?v=6" defer></script>
+  <script src="./presentation.js?v=6" defer></script>
+  <script src="./dashboard.js?v=6" defer></script>
 </head>
 <body>
   <main class="dashboard">
     <header class="dashboard-header"><a class="wordmark" id="widget-link" href="./?mode=box" target="_blank" rel="noopener noreferrer"><span class="small-star" aria-hidden="true">✳</span> 留一个问题 ↗</a><span class="connection" id="connection">本地题库</span></header>
     <section class="dashboard-intro"><p class="eyebrow">QUESTION LIBRARY</p><h1>问题库</h1></section>
-    <section class="add-panel"><h2>添加问题</h2><label class="sr-only" for="new-questions">新问题</label><textarea id="new-questions" rows="2" placeholder="每行一题" maxlength="250500"></textarea><div class="add-actions"><button class="text-button" id="import-local" type="button" hidden>导入本地题库</button><button class="primary" id="add" type="button">添加问题</button></div></section>
+    <section class="workspace">
+      <div class="preview-panel">
+        <div class="panel-heading"><h2>主页预览</h2><a id="preview-open" target="_blank" rel="noopener noreferrer" aria-label="在新标签页打开主页">↗</a></div>
+        <iframe id="widget-preview" title="问题主页预览" src="about:blank" referrerpolicy="no-referrer"></iframe>
+        <details class="appearance"><summary>调整主页</summary>
+          <div class="appearance-options"><label>默认样式<select id="setting-mode"><option value="box">盲盒</option><option value="card">卡片</option></select></label><label>主题<select id="setting-theme"><option value="auto">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label></div>
+          <div class="copy-fields" id="copy-fields"></div>
+        </details>
+      </div>
+      <section class="add-panel question-row"><h2>添加问题</h2><label class="sr-only" for="new-questions">新问题</label><textarea id="new-questions" rows="2" placeholder="写下一个想一起聊的问题…" maxlength="250500"></textarea><div class="add-actions"><button class="text-button" id="import-local" type="button" hidden>导入本地题库</button><button class="primary" id="add" type="button">添加问题</button></div></section>
+    </section>
     <div class="dashboard-toolbar"><span id="question-count"></span><button class="text-button" id="retry" type="button" hidden>重试</button></div>
     <p class="dashboard-status" id="status" role="status"></p>
     <section id="question-rows" class="question-rows" aria-label="问题列表"></section>

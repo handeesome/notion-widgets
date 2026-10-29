@@ -13,6 +13,8 @@ a { color:inherit; }
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:22px; }
 .wordmark { display:inline-flex; align-items:center; gap:8px; font-size:13px; letter-spacing:.06em; white-space:nowrap; }
 .small-star { color:var(--accent); font-size:24px; line-height:1; }
+.toolbar .wordmark { min-width:0; }
+#widget-name { white-space:normal; overflow-wrap:anywhere; }
 .mode-switch { display:flex; flex-shrink:0; gap:2px; margin:0; padding:3px; border:1px solid var(--line); border-radius:8px; }
 .mode-switch label { position:relative; cursor:pointer; }
 .mode-switch input { position:absolute; opacity:0; width:1px; height:1px; }

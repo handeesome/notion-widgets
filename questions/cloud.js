@@ -65,6 +65,11 @@
         if (!["ok", "conflict"].includes(result.status)) throw new Error("云端返回了未知的保存结果，请重试。");
         return { status: result.status, deck: validateDeck(result.deck) };
       },
+      async updateSettings(revision, settings) {
+        const result = await rpc("update_question_settings", { p_revision: revision, p_settings: settings });
+        if (!["ok", "conflict"].includes(result.status)) throw new Error("云端返回了未知的保存结果，请重试。");
+        return { status: result.status, deck: validateDeck(result.deck) };
+      },
       subscribe(onUpdate, onStatus) {
         if (!UUID.test(id) || !window.supabase?.createClient || !connection?.url || !connection?.publishableKey) {
           onStatus(false);

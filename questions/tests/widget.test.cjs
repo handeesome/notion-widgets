@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync('questions/app.js', 'utf8');
+const source = fs.readFileSync('questions/presentation.js', 'utf8') + '\n' + fs.readFileSync('questions/app.js', 'utf8');
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const tick = async () => { for (let i=0;i<12;i++) await Promise.resolve(); };
 function setup({ questions=['甲','乙','丙'], stored=null, search='', reduced=false, blocked=false, service=null }={}) {
@@ -18,7 +18,7 @@ function setup({ questions=['甲','乙','丙'], stored=null, search='', reduced=
     document:{hidden:false,documentElement:el('root'),getElementById:el,querySelectorAll:()=>radios,querySelector:()=>el('scene'),addEventListener(){}},
     location:{search},URLSearchParams,localStorage:{getItem(){if(blocked)throw Error('blocked');return persisted;},setItem(k,v){if(blocked)throw Error('blocked');persisted=v;}},
     matchMedia:()=>({matches:reduced}),setTimeout(fn){const id=++timerId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),setInterval(){return 1;},clearInterval(){},Date});
-  return {el,fire:(id,type='click')=>el(id).handlers[type](),flush(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(persisted),snapshot:()=>persisted};
+  return {el,events,fire:(id,type='click')=>el(id).handlers[type](),flush(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(persisted),snapshot:()=>persisted};
 }
 function server() {
   let deck={questions:['云甲','云乙','云丙'],remaining:[0,1,2],current:null,revealed:false,revision:0};
@@ -49,6 +49,25 @@ test('rounds do not repeat questions and avoid immediate repeats at the boundary
 test('blocked storage and empty decks do not break rendering',()=>{
   const p=setup({blocked:true,reduced:true});p.fire('card-action');assert.ok(p.el('question-text').textContent);assert.equal(p.el('storage-note').hidden,false);
   assert.equal(setup({questions:[]}).el('card-action').disabled,true);
+});
+
+test('home copy and default appearance load from settings while URL overrides remain effective',()=>{
+  const stored=JSON.stringify({settings:{name:'我们的对话',invitation:'今天聊什么？',frontBottom:'慢慢想',mode:'card',theme:'dark'}});
+  const p=setup({stored});assert.equal(p.el('widget-name').textContent,'我们的对话');assert.equal(p.el('invitation-title').textContent,'今天聊什么？');assert.equal(p.el('root').dataset.mode,'card');assert.equal(p.el('root').dataset.theme,'dark');
+  const q=setup({stored,search:'?mode=box&theme=light'});assert.equal(q.el('root').dataset.mode,'box');assert.equal(q.el('root').dataset.theme,'light');
+});
+
+test('preview interactions never write to cloud or local storage',async()=>{
+  let writes=0;const service={async load(){return{questions:['测试题'],remaining:[],current:0,revealed:true,revision:1};},async change(){writes++;throw Error('preview wrote to cloud');},subscribe(){return()=>{};}};
+  const p=setup({service,search:'?id=shared&preview=1',reduced:true});await tick();assert.equal(p.el('card').classList.contains('is-revealed'),false);await p.fire('card-action');assert.equal(p.el('question-text').textContent,'测试题');assert.equal(writes,0);assert.equal(p.snapshot(),null);
+  const q=setup({search:'?preview=1',reduced:true});q.fire('card-action');assert.equal(q.snapshot(),null);assert.equal(q.el('manage-questions').hidden,true);
+});
+
+test('a settings update does not close an already opened preview',async()=>{
+  let changed;let deck={questions:['测试题'],remaining:[],current:0,revealed:true,revision:1};
+  const service={async load(){return JSON.parse(JSON.stringify(deck));},subscribe(fn){changed=fn;return()=>{};}};
+  const p=setup({service,search:'?id=shared&preview=1',reduced:true});await tick();p.fire('card-action');deck={...deck,revision:2,settings:{backBottom:'慢慢聊'}};changed();await tick();
+  assert.equal(p.el('card').classList.contains('is-revealed'),true);assert.equal(p.el('card-note').textContent,'慢慢聊');
 });
 test('management uses the same deck in a separate dashboard URL',()=>{
   const p=setup({search:'?id=shared&theme=dark',service:server().service});assert.equal(p.el('manage-questions').href,'./dashboard.html?id=shared&theme=dark');assert.equal(p.el('root').dataset.theme,'dark');

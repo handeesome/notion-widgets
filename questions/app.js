@@ -5,6 +5,10 @@
   const params = new URLSearchParams(location.search);
   const cloudMode = params.has("id");
   const cloud = cloudMode ? window.QuestionCloud?.create(location.search) : null;
+  const preview = params.get("preview") === "1";
+  let presentation = window.QuestionPresentation.normalize();
+  let previewPresentation = null;
+  let modeChosen = false;
   const theme = params.get("theme");
   if (["light", "dark"].includes(theme)) document.documentElement.dataset.theme = theme;
   const manageParams = new URLSearchParams();
@@ -38,6 +42,8 @@
       questions = custom.length ? [...new Set(custom)] : defaults;
       customQuestions = custom.length ? questions : null;
       questionMeta = Array.isArray(saved?.questionMeta) ? saved.questionMeta : [];
+      presentation = window.QuestionPresentation.normalize(previewPresentation || saved?.settings);
+      if (!saved?.settings?.mode && ["card", "box"].includes(saved?.mode)) presentation.mode = saved.mode;
       remaining = questions.map((_, i) => i); current = null; revealed = false;
       if (!params.has("mode") && ["card", "box"].includes(saved?.mode)) mode = saved.mode;
       const valid = (i) => Number.isInteger(i) && i >= 0 && i < questions.length;
@@ -47,16 +53,24 @@
         remaining = saved.remaining; current = saved.current; revealed = current !== null && saved.revealed !== false;
       }
       if (current === null) remaining = questions.map((_, i) => i);
+      if (preview) { current = null; revealed = false; remaining = questions.map((_, i) => i); }
     } catch { warning(); }
   }
   function persist() {
     if (cloudMode) return;
-    try { localStorage.setItem(KEY, JSON.stringify({ questions: customQuestions, questionMeta, source: questions, mode, remaining, current, revealed })); }
+    if (preview) return;
+    try { localStorage.setItem(KEY, JSON.stringify({ questions: customQuestions, questionMeta, settings: { ...presentation, mode }, source: questions, mode, remaining, current, revealed })); }
     catch { warning(); }
   }
   function message(text) { $("sync-status").textContent = text; $("sync-status").hidden = !text; }
   function connected() { message(""); }
   function render(animate = false) {
+    if (!params.has("mode") && !modeChosen) mode = presentation.mode;
+    document.documentElement.dataset.theme = ["light", "dark"].includes(theme) ? theme : presentation.theme;
+    $("widget-name").textContent = presentation.name;
+    $("front-top").textContent = presentation.frontTop;
+    $("front-bottom").textContent = presentation.frontBottom;
+    $("back-top").textContent = presentation.backTop;
     document.documentElement.dataset.mode = mode;
     document.querySelectorAll('[name="mode"]').forEach((input) => { input.checked = input.value === mode; });
     const open = current !== null && revealed;
@@ -93,8 +107,8 @@
         flipTimer = setTimeout(() => { card.classList.remove("cycle"); flipping = false; updateDisabled(); }, 650);
       }
     }
-    $("card-note").textContent = "听听彼此的答案";
-    $("invitation-title").textContent = ready ? "留一点好奇，打开聊聊。" : "连接你的问题盲盒。";
+    $("card-note").textContent = presentation.backBottom;
+    $("invitation-title").textContent = ready ? presentation.invitation : "连接你的问题盲盒。";
     $("card-action").setAttribute("aria-label", open ? mode === "box" ? "抽取下一个盲盒" : "抽取下一个问题" : "打开这个盲盒");
     updateDisabled();
   }
@@ -105,8 +119,12 @@
   function applyDeck(deck, animate) {
     if (deck.revision <= revision) return;
     const wasLoaded = revision >= 0;
-    questions = deck.questions; remaining = deck.remaining; current = deck.current;
-    revealed = deck.revealed; revision = deck.revision;
+    const resetPreview = preview && (!wasLoaded || JSON.stringify(questions) !== JSON.stringify(deck.questions));
+    questions = deck.questions;
+    if (!preview) { remaining = deck.remaining; current = deck.current; revealed = deck.revealed; }
+    else if (resetPreview) { remaining = questions.map((_, i) => i); current = null; revealed = false; }
+    revision = deck.revision;
+    presentation = window.QuestionPresentation.normalize(previewPresentation || deck.settings);
     render(animate && wasLoaded && !document.hidden);
   }
   async function refresh(animate = false) {
@@ -142,15 +160,24 @@
   }
   $("card-action").addEventListener("click", () => {
     if (!ready || writing || flipping || !questions.length) return;
-    if (cloudMode) return current === null ? change("draw", true) : revealed ? change("draw", false) : change("reveal");
+    if (cloudMode && !preview) return current === null ? change("draw", true) : revealed ? change("draw", false) : change("reveal");
     if (current === null) drawLocal(true);
     else if (revealed) drawLocal(false);
     else revealed = true;
     render(true); persist();
   });
   document.querySelectorAll('[name="mode"]').forEach((input) => input.addEventListener("change", () => {
-    mode = input.value; render(false); persist();
+    modeChosen = true; mode = input.value; render(false); persist();
   }));
+  if (preview) {
+    $("manage-questions").hidden = true;
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== "question-preview") return;
+      previewPresentation = window.QuestionPresentation.normalize(event.data.settings);
+      presentation = previewPresentation;
+      modeChosen = false; render(false);
+    });
+  }
   if (cloudMode) {
     void refresh(false);
     const unsubscribe = cloud?.subscribe(() => { void refresh(true); }, () => {});
