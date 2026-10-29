@@ -53,12 +53,19 @@ test('blocked storage and empty decks do not break rendering',()=>{
 test('management uses the same deck in a separate dashboard URL',()=>{
   const p=setup({search:'?id=shared&theme=dark',service:server().service});assert.equal(p.el('manage-questions').href,'./dashboard.html?id=shared&theme=dark');assert.equal(p.el('root').dataset.theme,'dark');
 });
-test('two online clients show the same question and animate both sides of a flip',async()=>{
-  const s=server();const a=setup({search:'?id=shared',service:s.service});const b=setup({search:'?id=shared',service:s.service});await tick();
+test('two online card clients show the same question and animate both sides of a flip',async()=>{
+  const s=server();const a=setup({search:'?id=shared&mode=card',service:s.service});const b=setup({search:'?id=shared&mode=card',service:s.service});await tick();
   await a.fire('card-action');await tick();
   assert.equal(a.el('question-text').textContent,b.el('question-text').textContent);assert.equal(a.el('card').classList.contains('is-revealed'),true);assert.equal(b.el('card').classList.contains('is-revealed'),true);
   assert.equal(a.el('card-action').disabled,true);assert.equal(b.el('card-action').disabled,true);
   a.flush();b.flush();await b.fire('card-action');await tick();assert.equal(a.el('card').classList.contains('is-revealed'),false);assert.equal(b.el('card').classList.contains('is-revealed'),false);
+});
+test('box mode opens the lid before showing the question, without flipping the card',async()=>{
+  const s=server();const a=setup({search:'?id=shared',service:s.service});const b=setup({search:'?id=shared',service:s.service});await tick();
+  await a.fire('card-action');await tick();
+  assert.equal(a.el('card').classList.contains('box-opening'),true);assert.equal(b.el('card').classList.contains('box-opening'),true);
+  assert.equal(a.el('card').classList.contains('is-revealed'),false);assert.equal(a.el('question-text').textContent,'');
+  a.flush();b.flush();assert.equal(a.el('card').classList.contains('is-revealed'),true);assert.equal(a.el('question-text').textContent,b.el('question-text').textContent);
 });
 test('a late arriving device restores a result without replaying its animation',async()=>{
   const s=server();const a=setup({search:'?id=shared',service:s.service});await tick();await a.fire('card-action');await tick();

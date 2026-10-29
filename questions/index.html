@@ -6,12 +6,12 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="referrer" content="no-referrer" />
   <title>留一个问题 · 问题盲盒</title>
-  <link rel="stylesheet" href="./styles.css?v=4" />
+  <link rel="stylesheet" href="./styles.css?v=5" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="./supabase-config.js?v=4" defer></script>
   <script src="./questions.js?v=4" defer></script>
   <script src="./cloud.js?v=4" defer></script>
-  <script src="./app.js?v=4" defer></script>
+  <script src="./app.js?v=5" defer></script>
 </head>
 <body>
   <main class="widget">
@@ -28,23 +28,22 @@
         <div class="card-face card-front" id="card-front">
           <div class="card-top"><span>一段对话的开始</span><span class="card-mark" aria-hidden="true">↗</span></div>
           <div class="card-content invitation">
-            <div class="paper-symbol" aria-hidden="true"><span>?</span></div>
-            <div class="box-symbol" aria-hidden="true"><svg viewBox="0 0 120 116" fill="none"><path d="M24 40 60 22 96 40 60 58Z"/><path d="M24 47 60 65 96 47V83L60 102 24 83Z"/><path d="M60 65V102M42 56 78 38M22 19v10m-5-5h10M96 9v12m-6-6h12M106 65v8m-4-4h8"/></svg></div>
+            <div class="paper-symbol" aria-hidden="true"><span class="paper-card paper-card-back"></span><span class="paper-card paper-card-middle"></span><span class="paper-card paper-card-front">?</span></div>
+            <div class="box-symbol" aria-hidden="true"><svg viewBox="0 0 120 116" fill="none"><path class="box-lid" d="M24 40 60 22 96 40 60 58Z"/><path d="M24 47 60 65 96 47V83L60 102 24 83Z"/><path d="M60 65V102M42 56 78 38M22 19v10m-5-5h10M96 9v12m-6-6h12M106 65v8m-4-4h8"/></svg></div>
             <h1 id="invitation-title">留一点好奇，打开聊聊。</h1>
-            <p id="invitation-note">轻点卡片，打开一个问题。</p>
           </div>
           <div class="card-bottom"><span>给彼此一点思考的时间</span></div>
         </div>
         <div class="card-face card-back" id="card-back" aria-hidden="true">
           <div class="card-top"><span>留给此刻的问题</span><span class="card-mark" aria-hidden="true">↗</span></div>
           <div class="card-content question"><span class="question-quote" aria-hidden="true">“</span><h1 id="question-text" aria-live="polite"></h1></div>
-          <div class="card-bottom"><span id="card-note">听听彼此的答案 · 轻点换一个盲盒</span></div>
+          <div class="card-bottom"><span id="card-note">听听彼此的答案</span></div>
         </div>
       </div>
       <button class="card-action" id="card-action" type="button" aria-label="打开这个盲盒"></button>
       <a class="manage-icon" id="manage-questions" href="./dashboard.html" target="_blank" rel="noopener noreferrer" aria-label="在新标签页管理问题" title="管理问题"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h6m4 0h6M4 17h10m4 0h2"/><circle cx="12" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></a>
     </section>
-    <div class="sync-bar" id="sync-bar" hidden><p id="sync-status" role="status"></p><button class="text-button" id="retry-sync" type="button">重新同步</button></div>
+    <p class="sync-status" id="sync-status" role="status" hidden></p>
     <p class="storage-note" id="storage-note" role="status" hidden></p>
     <noscript>请启用 JavaScript 后抽取问题。</noscript>
   </main>

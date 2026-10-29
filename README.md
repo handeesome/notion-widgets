@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | [`gallery/`](./gallery/) | 支持多种布局、自动播放和在线配置的图片画廊 | Supabase、Supabase JS CDN | [Gallery Widget](./gallery/README.md) |
 | [`weather/`](./weather/) | 展示厦门与宁波实时天气的双城天气卡片 | Open-Meteo | [Weather Widget](./weather/README.md) |
-| [`questions/`](./questions/) | 整张卡片翻转的问题盲盒、独立管理页、跨设备题库与进度同步 | Supabase、Supabase JS CDN；可选本地存储模式 | [问题盲盒](./questions/README.md) |
+| [`questions/`](./questions/) | 支持开盒 / 整卡翻转的问题抽取、自动保存管理页、跨设备同步 | Supabase、Supabase JS CDN；可选本地存储模式 | [问题盲盒](./questions/README.md) |
 
 ## 本地预览
 
@@ -28,7 +28,9 @@ python -m http.server 4174
 
 图库还需要先配置 Supabase，并在 URL 中提供 `gallery_id`；完整步骤见 [`gallery/README.md`](./gallery/README.md)。
 
-问题盲盒可在 `questions` 目录运行 `python -m http.server 4175`，访问 `http://localhost:4175`。点击卡片打开问题，整张卡片翻转，再点翻回下一只盲盒。右下角图标在新标签页打开 Dashboard；每条问题单独配眼睛按钮和添加时间。带 `id` 的专属链接通过 Supabase 同步题库、当前问题及进度，在线设备会跟随翻转；不带 `id` 时使用本地存储。URL 支持 `theme=light|dark` 和 `mode=card|box`，初始化与用法见[问题盲盒文档](./questions/README.md)。
+问题盲盒可在 `questions` 目录运行 `python -m http.server 4175`，访问 `http://localhost:4175`。仅卡片中间区域可触发操作，上下文字不响应；盲盒模式播放盒盖打开，卡片模式整张翻转，两种模式均在「封面 → 问题 → 下一张封面」间切换。右下角图标在新标签页打开 Dashboard；每条问题单独配眼睛按钮和添加时间。带 `id` 的专属链接通过 Supabase 同步题库、当前问题及进度；不带 `id` 时使用本地存储。URL 支持 `theme=light|dark` 和 `mode=card|box`，初始化与用法见[问题盲盒文档](./questions/README.md)。
+
+问题组件采用简洁文案，操作说明集中在文档。Dashboard 用带图钉的便签卡片组成问题墙，新增区域位于顶部，点击「添加问题」直接保存；编辑自动保存，移除直接生效，没有额外保存和重新载入步骤。主界面不显示常驻同步提示或同步按钮。
 
 图库配置页支持鼠标和触摸拖拽排序：卡片浮起跟随移动，相邻卡片实时平滑让位，松手后自动保存。长列表支持边缘自动滚动，按 Esc 可取消拖拽，也可聚焦卡片后用 Alt + ↑ / ↓ 调整顺序。
 

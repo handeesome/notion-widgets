@@ -30,7 +30,11 @@ a { color:inherit; }
 .card-mark { font-size:18px; color:var(--accent); }
 .card-content { display:flex; flex:1; flex-direction:column; justify-content:center; min-height:216px; padding:22px 0; }
 .invitation { text-align:center; }
-.paper-symbol { display:grid; place-items:center; width:39px; height:48px; margin:0 auto 21px; transform:rotate(-9deg); border:1px solid var(--accent); border-radius:4px; box-shadow:5px 5px 0 var(--soft); color:var(--accent); font:26px Georgia,serif; }
+.paper-symbol { position:relative; width:84px; height:86px; margin:0 auto 19px; color:var(--accent); font:30px Georgia,serif; }
+.paper-card { position:absolute; display:grid; place-items:center; left:17px; top:8px; width:50px; height:66px; border:1px solid var(--accent); border-radius:5px; background:var(--paper); box-shadow:1px 3px 3px #0000000a; }
+.paper-card-back { transform:translate(-10px,3px) rotate(-19deg); background:var(--soft); }
+.paper-card-middle { transform:translate(10px,2px) rotate(15deg); background:var(--soft); }
+.paper-card-front { transform:translateY(-2px) rotate(-4deg); }
 .invitation h1 { margin:0; font-family:"Songti SC",SimSun,serif; font-weight:400; font-size:clamp(19px,4vw,23px); line-height:1.65; }
 .invitation p { margin:10px 0 0; font-size:12px; line-height:1.8; color:var(--muted); }
 .question { padding:18px 3px 25px; }
@@ -40,16 +44,26 @@ a { color:inherit; }
 .box-symbol svg { display:block; width:100%; stroke:var(--accent); stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
 [data-mode="box"] .paper-symbol { display:none; }
 [data-mode="box"] .box-symbol { display:block; }
-.card-action { position:absolute; inset:0; z-index:1; width:100%; height:100%; border:0; border-radius:16px; background:transparent; }
+.card-action { position:absolute; inset:62px 26px 58px; z-index:1; border:0; border-radius:10px; background:transparent; }
 .card-action:disabled { cursor:wait; }
 .manage-icon { position:absolute; right:17px; bottom:15px; z-index:2; display:grid; place-items:center; width:32px; height:32px; border-radius:7px; color:var(--muted); }
 .manage-icon:hover { background:var(--soft); color:var(--ink); }
 .manage-icon svg { width:19px; height:19px; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; }
 .text-button { border:0; padding:7px 0; background:transparent; color:var(--muted); font-size:11px; text-decoration:underline; text-underline-offset:4px; }
-.sync-bar { display:flex; align-items:baseline; justify-content:space-between; gap:12px; color:var(--muted); font-size:11px; line-height:1.7; }
-.sync-bar p { margin:12px 0 0; }
-.sync-bar button { flex-shrink:0; }
+.sync-status { margin:12px 0 0; color:var(--muted); font-size:11px; line-height:1.7; }
+.box-lid { transform-origin:60px 40px; }
+[data-mode="box"] .card { transform:none; transition:none; }
+[data-mode="box"] .card-front,[data-mode="box"] .card-back { transform:none; }
+[data-mode="box"] .card-back { opacity:0; visibility:hidden; }
+[data-mode="box"] .card.is-revealed .card-front { opacity:0; visibility:hidden; }
+[data-mode="box"] .card.is-revealed .card-back { opacity:1; visibility:visible; }
+.card.box-opening .box-symbol { animation:box-shake 500ms ease-in-out; }
+.card.box-opening .box-lid { animation:lid-open 600ms ease both; }
+.card.cycle { animation:card-cycle 600ms cubic-bezier(.22,.65,.27,1); }
+@keyframes box-shake { 25%{transform:rotate(-7deg)} 55%{transform:rotate(6deg)} 80%{transform:rotate(-3deg)} }
+@keyframes lid-open { to{transform:translateY(-16px) rotate(-12deg);opacity:0} }
+@keyframes card-cycle { from{transform:rotateY(180deg)} to{transform:rotateY(540deg)} }
 .storage-note { color:var(--muted); font-size:12px; line-height:1.7; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-@media(max-width:380px) { .widget { padding:18px 14px; } .wordmark { font-size:12px; gap:5px; } .mode-switch span { padding:6px 10px; } .card-face { padding:18px; } .manage-icon { right:10px; bottom:12px; } }
+@media(max-width:380px) { .widget { padding:18px 14px; } .wordmark { font-size:12px; gap:5px; } .mode-switch span { padding:6px 10px; } .card-face { padding:18px; } .card-action { inset:56px 18px 54px; } .manage-icon { right:10px; bottom:12px; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }

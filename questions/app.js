@@ -24,7 +24,6 @@
   let writing = false;
   let syncing = false;
   let queued = false;
-  let live = false;
   let flipping = false;
   let flipTimer;
 
@@ -55,30 +54,48 @@
     try { localStorage.setItem(KEY, JSON.stringify({ questions: customQuestions, questionMeta, source: questions, mode, remaining, current, revealed })); }
     catch { warning(); }
   }
-  function message(text) { $("sync-status").textContent = text; }
-  function connected() { message(live ? "云端已连接 · 实时同步" : "云端已连接 · 定时同步"); }
+  function message(text) { $("sync-status").textContent = text; $("sync-status").hidden = !text; }
+  function connected() { message(""); }
   function render(animate = false) {
     document.documentElement.dataset.mode = mode;
     document.querySelectorAll('[name="mode"]').forEach((input) => { input.checked = input.value === mode; });
     const open = current !== null && revealed;
     const card = $("card");
     const changed = card.classList.contains("is-revealed") !== open;
-    if (!animate) card.classList.add("no-motion");
-    card.classList.toggle("is-revealed", open);
-    $("card-front").setAttribute("aria-hidden", String(open));
-    $("card-back").setAttribute("aria-hidden", String(!open));
-    if (open) $("question-text").textContent = questions[current];
-    else if (!animate || !changed) $("question-text").textContent = "";
-    $("card-note").textContent = mode === "box" ? "听听彼此的答案 · 轻点换一个盲盒" : "听听彼此的答案 · 轻点换一个问题";
-    $("invitation-title").textContent = ready ? "留一点好奇，打开聊聊。" : "连接你的问题盲盒。";
-    $("invitation-note").textContent = !questions.length && ready ? "点右下角图标，放进想聊的问题。" : "轻点卡片，打开一个问题。";
-    $("card-action").setAttribute("aria-label", open ? mode === "box" ? "抽取下一个盲盒" : "抽取下一个问题" : "打开这个盲盒");
-    if (!animate) { void card.offsetWidth; card.classList.remove("no-motion"); }
-    if (changed && animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      flipping = true;
-      clearTimeout(flipTimer);
-      flipTimer = setTimeout(() => { flipping = false; if (!revealed) $("question-text").textContent = ""; updateDisabled(); }, 650);
+    const newQuestion = open && $("question-text").textContent !== questions[current];
+    const motion = animate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    clearTimeout(flipTimer);
+    flipping = false;
+    card.classList.remove("box-opening", "cycle");
+    function show(openFace, transition) {
+      if (!transition) card.classList.add("no-motion");
+      card.classList.toggle("is-revealed", openFace);
+      $("card-front").setAttribute("aria-hidden", String(openFace));
+      $("card-back").setAttribute("aria-hidden", String(!openFace));
+      $("question-text").textContent = openFace ? questions[current] : "";
+      if (!transition) { void card.offsetWidth; card.classList.remove("no-motion"); }
     }
+    if (motion && changed && open && mode === "box") {
+      show(false, false);
+      flipping = true;
+      card.classList.add("box-opening");
+      flipTimer = setTimeout(() => {
+        card.classList.remove("box-opening");
+        show(true, false);
+        flipping = false;
+        updateDisabled();
+      }, 600);
+    } else {
+      show(open, motion && mode === "card");
+      if (motion && mode === "card" && (changed || newQuestion)) {
+        if (!changed && newQuestion) { void card.offsetWidth; card.classList.add("cycle"); }
+        flipping = true;
+        flipTimer = setTimeout(() => { card.classList.remove("cycle"); flipping = false; updateDisabled(); }, 650);
+      }
+    }
+    $("card-note").textContent = "听听彼此的答案";
+    $("invitation-title").textContent = ready ? "留一点好奇，打开聊聊。" : "连接你的问题盲盒。";
+    $("card-action").setAttribute("aria-label", open ? mode === "box" ? "抽取下一个盲盒" : "抽取下一个问题" : "打开这个盲盒");
     updateDisabled();
   }
   function updateDisabled() {
@@ -106,13 +123,13 @@
   }
   async function change(action, openImmediately = false) {
     if (!ready || writing || flipping) return;
-    writing = true; updateDisabled(); message("正在同步…");
+    writing = true; updateDisabled(); message("");
     try {
       const result = await cloud.change(action, revision, { reveal: openImmediately });
       applyDeck(result.deck, true);
       if (result.status === "conflict") message("另一台设备刚刚更新了进度。已显示最新状态，请再点击卡片。");
       else connected();
-    } catch (error) { ready = false; message(`${error.message} 请重新同步以确认结果。`); }
+    } catch (error) { ready = false; message(`${error.message} 请刷新页面确认结果。`); }
     finally { writing = false; updateDisabled(); if (queued) { queued = false; void refresh(true); } }
   }
   function drawLocal(openImmediately) {
@@ -125,9 +142,9 @@
   }
   $("card-action").addEventListener("click", () => {
     if (!ready || writing || flipping || !questions.length) return;
-    if (cloudMode) return current === null ? change("draw", true) : revealed ? change("draw", mode === "card") : change("reveal");
+    if (cloudMode) return current === null ? change("draw", true) : revealed ? change("draw", false) : change("reveal");
     if (current === null) drawLocal(true);
-    else if (revealed) drawLocal(mode === "card");
+    else if (revealed) drawLocal(false);
     else revealed = true;
     render(true); persist();
   });
@@ -135,10 +152,8 @@
     mode = input.value; render(false); persist();
   }));
   if (cloudMode) {
-    $("sync-bar").hidden = false; message("正在连接云端…");
-    $("retry-sync").addEventListener("click", () => refresh(false));
     void refresh(false);
-    const unsubscribe = cloud?.subscribe(() => { void refresh(true); }, (status) => { live = status; if (ready && !writing) connected(); });
+    const unsubscribe = cloud?.subscribe(() => { void refresh(true); }, () => {});
     const poll = setInterval(() => { if (!document.hidden) void refresh(true); }, 5000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) void refresh(false); });
     window.addEventListener("focus", () => { void refresh(false); });

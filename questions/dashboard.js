@@ -14,55 +14,25 @@
   const eye = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
   let items = [];
   let revision = -1;
-  let base = "";
-  let dirty = false;
-  let saving = false;
+  let ready = false;
   let loading = false;
-  let ready = !cloudMode;
+  let waiting = 0;
+  let tail = Promise.resolve();
+  let notice = "";
+  let failed = null;
+  let refreshQueued = false;
+  const drafts = new Map();
   const shown = new Set();
-  const signature = (list) => JSON.stringify(list.map(({ id, text, created_at }) => ({ id, text, created_at })));
+  const rows = new Map();
+  const queuedUpdates = new Set();
   const stamp = (value) => value ? `添加于 ${new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))}` : "添加时间未记录";
-  function status(text) { $("status").textContent = text; }
-  function buttons() {
-    $("save").disabled = !ready || saving || !dirty;
-    $("add").disabled = !ready || saving;
-    $("reload").disabled = loading || saving;
-    $("reload").textContent = dirty ? "放弃修改并重载" : "重新载入";
-    $("import-local").disabled = !ready || saving;
-    $("question-rows").inert = saving;
-    $("new-questions").disabled = saving;
-    $("question-count").textContent = `${items.length} 个问题${dirty ? " · 有未保存修改" : ""}`;
-  }
-  function changed() { dirty = true; status("修改尚未保存。保存后所有设备重新开始一轮。"); buttons(); }
-  function renderRows() {
-    $("question-rows").replaceChildren();
-    items.forEach((item, index) => {
-      const key = item.id || item._key;
-      const row = document.createElement("article"); row.className = "question-row";
-      const heading = document.createElement("div"); heading.className = "row-heading";
-      const number = document.createElement("span"); number.className = "row-number"; number.textContent = `问题 ${String(index + 1).padStart(2, "0")}`;
-      const controls = document.createElement("div"); controls.className = "row-controls";
-      const toggle = document.createElement("button"); toggle.type = "button"; toggle.className = "eye-button"; toggle.innerHTML = eye;
-      const remove = document.createElement("button"); remove.type = "button"; remove.className = "remove-button"; remove.textContent = "移除"; remove.setAttribute("aria-label", `移除第 ${index + 1} 条问题`);
-      const mask = document.createElement("p"); mask.className = "masked-text"; mask.setAttribute("aria-label", "问题已隐藏");
-      const input = document.createElement("textarea"); input.className = "row-input"; input.maxLength = 500; input.rows = 2; input.setAttribute("aria-label", `编辑第 ${index + 1} 条问题`);
-      function visibility() {
-        const visible = shown.has(key);
-        mask.hidden = visible; mask.textContent = visible ? "" : "*".repeat(Array.from(item.text).length);
-        input.hidden = !visible; input.disabled = !visible; input.value = visible ? item.text : "";
-        toggle.setAttribute("aria-label", `${visible ? "隐藏" : "显示"}第 ${index + 1} 条问题`);
-        toggle.setAttribute("aria-pressed", String(visible));
-      }
-      toggle.addEventListener("click", () => { if (shown.has(key)) shown.delete(key); else shown.add(key); visibility(); });
-      input.addEventListener("input", () => { item.text = input.value; changed(); });
-      remove.addEventListener("click", () => { if (saving) return; items = items.filter((candidate) => candidate !== item); shown.delete(key); changed(); renderRows(); });
-      const time = document.createElement("time"); time.className = "row-time";
-      if (item.created_at) time.dateTime = item.created_at;
-      time.textContent = item.id ? stamp(item.created_at) : "保存后记录添加时间";
-      controls.append(toggle, remove); heading.append(number, controls); row.append(heading, mask, input, time);
-      visibility(); $("question-rows").append(row);
-    });
-    buttons();
+  function status() {
+    $("status").textContent = waiting ? "正在保存…" : notice;
+    $("retry").hidden = !failed;
+    $("retry").disabled = !!waiting;
+    $("add").disabled = !ready || !!waiting;
+    $("import-local").disabled = !ready || !!waiting;
+    $("question-count").textContent = `${items.length} 个问题`;
   }
   function localData() {
     const saved = JSON.parse(localStorage.getItem(KEY));
@@ -70,81 +40,183 @@
     const meta = Array.isArray(saved?.questionMeta) ? saved.questionMeta : [];
     return { saved, items: texts.map((text, i) => ({ id: meta[i]?.id || `legacy-${i}`, text, created_at: meta[i]?.created_at || null })) };
   }
-  function accept(deck, force = false) {
-    if (deck.revision < revision) return;
-    const nextBase = signature(deck.items);
-    ready = true;
-    if (dirty && !force) {
-      if (nextBase === base) revision = deck.revision;
-      else status("另一台设备修改了题库。你的草稿已保留，请先重新载入再编辑。");
-      return;
-    }
-    const changedItems = nextBase !== base || force;
-    revision = deck.revision; ready = true;
-    if (changedItems) { items = deck.items.map((item) => ({ ...item })); base = nextBase; dirty = false; shown.clear(); renderRows(); }
-    buttons();
-  }
-  async function reload(force = false) {
-    if (loading || saving) return;
-    loading = true; buttons();
-    try {
-      if (cloudMode) {
-        if (!cloud) throw new Error("云端服务未能启动，请刷新重试。");
-        const deck = await cloud.load(); accept(deck, force);
-        $("connection").textContent = "云端题库";
-        if (!dirty) status("题库已同步。每条问题默认隐藏。");
-      } else {
-        const data = localData(); items = data.items; base = signature(items); dirty = false; ready = true; shown.clear(); renderRows();
-        status("每条问题默认隐藏，修改后点击「保存修改」。");
+  function renderRows() {
+    const ids = new Set(items.map((item) => item.id));
+    for (const [id, row] of rows) if (!ids.has(id)) { row.element.remove(); rows.delete(id); shown.delete(id); }
+    items.forEach((item, index) => {
+      let row = rows.get(item.id);
+      if (!row) {
+        const element = document.createElement("article"); element.className = "question-row";
+        const heading = document.createElement("div"); heading.className = "row-heading";
+        const number = document.createElement("span"); number.className = "row-number";
+        const controls = document.createElement("div"); controls.className = "row-controls";
+        const toggle = document.createElement("button"); toggle.type = "button"; toggle.className = "eye-button"; toggle.innerHTML = eye;
+        const remove = document.createElement("button"); remove.type = "button"; remove.className = "remove-button"; remove.textContent = "移除";
+        const mask = document.createElement("p"); mask.className = "masked-text"; mask.setAttribute("aria-label", "问题已隐藏");
+        const input = document.createElement("textarea"); input.className = "row-input"; input.maxLength = 500; input.rows = 2;
+        const time = document.createElement("time"); time.className = "row-time";
+        controls.append(toggle, remove); heading.append(number, controls); element.append(heading, mask, input, time);
+        row = { element, number, toggle, remove, mask, input, time };
+        rows.set(item.id, row); $("question-rows").append(element);
+        toggle.addEventListener("click", () => { if (shown.has(item.id)) shown.delete(item.id); else shown.add(item.id); renderRows(); });
+        input.addEventListener("input", () => {
+          let draft = drafts.get(item.id);
+          if (!draft) { draft = { text: item.text, baseText: items.find((q) => q.id === item.id)?.text }; drafts.set(item.id, draft); }
+          draft.text = input.value; clearTimeout(draft.timer);
+          draft.timer = setTimeout(() => { void saveDraft(item.id); }, 700);
+          notice = ""; status();
+        });
+        input.addEventListener("blur", () => { if (drafts.has(item.id)) void saveDraft(item.id); });
+        remove.addEventListener("click", () => {
+          if (waiting || !ready) return;
+          const latest = items.find((q) => q.id === item.id);
+          void enqueue({ kind: "remove", id: item.id, baseText: drafts.get(item.id)?.text.trim() ?? latest?.text });
+        });
       }
-    } catch (error) { ready = false; status(error.message); }
-    finally { loading = false; buttons(); }
+      const text = drafts.get(item.id)?.text ?? item.text;
+      const visible = shown.has(item.id);
+      row.number.textContent = `问题 ${String(index + 1).padStart(2, "0")}`;
+      row.toggle.setAttribute("aria-label", `${visible ? "隐藏" : "显示"}第 ${index + 1} 条问题`);
+      row.toggle.setAttribute("aria-pressed", String(visible));
+      row.remove.setAttribute("aria-label", `移除第 ${index + 1} 条问题`); row.remove.disabled = !!waiting;
+      row.input.setAttribute("aria-label", `编辑第 ${index + 1} 条问题`);
+      row.mask.hidden = visible; row.mask.textContent = visible ? "" : "*".repeat(Array.from(text).length);
+      row.input.hidden = !visible; row.input.disabled = !visible;
+      if (!visible) row.input.value = "";
+      else if (document.activeElement !== row.input) row.input.value = text;
+      if (item.created_at) row.time.dateTime = item.created_at;
+      row.time.textContent = stamp(item.created_at);
+    });
+    status();
+  }
+  function accept(deck) {
+    if (deck.revision !== undefined && deck.revision < revision) return;
+    items = deck.items.map((item) => ({ ...item }));
+    revision = deck.revision ?? revision; ready = true; renderRows();
+  }
+  async function refresh() {
+    if (loading || waiting) { refreshQueued = true; return; }
+    loading = true;
+    try {
+      if (cloudMode && !cloud) throw new Error("云端服务未能启动，请刷新重试。");
+      accept(cloudMode ? await cloud.load() : localData());
+      $("connection").textContent = cloudMode ? "云端题库" : "本地题库";
+      if (!failed) notice = "";
+    } catch (error) { ready = false; notice = error.message; failed = { kind: "load" }; }
+    finally { loading = false; status(); }
+  }
+  function nextItems(latest, op, force) {
+    let next = latest.map((item) => ({ ...item }));
+    if (op.kind === "add") {
+      const existing = new Set(next.map((item) => item.text));
+      next.push(...op.texts.filter((text) => !existing.has(text)).map((text) => ({ id: null, text, created_at: null })));
+    }
+    else {
+      const item = next.find((q) => q.id === op.id);
+      if (!item) {
+        if (op.kind === "remove") return next;
+        throw new Error("这条问题已被移除，你的内容仍保留在输入框中。");
+      }
+      if (!force && item.text !== op.baseText && !(op.kind === "update" && item.text === op.text)) throw new Error("这条问题已在别处修改。你的内容已保留，可点重试保存。");
+      if (op.kind === "update") item.text = op.text.trim();
+      else next = next.filter((q) => q.id !== op.id);
+    }
+    if (!next.length || next.length > 500 || next.some((q) => !q.text.trim() || q.text.length > 500)) throw new Error("题库需保留 1–500 个问题，每题 1–500 字。");
+    if (new Set(next.map((q) => q.text.trim())).size !== next.length) throw new Error("有重复的问题，请修改后重试。");
+    return next;
+  }
+  async function persistOperation(op, force) {
+    if (cloudMode) {
+      let deck = await cloud.load();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const next = nextItems(deck.items, op, force);
+        if (JSON.stringify(next) === JSON.stringify(deck.items)) { accept(deck); return; }
+        const result = await cloud.change("edit", deck.revision, { questions: next.map(({ id, text }) => ({ id, text })) });
+        if (result.status === "ok") { accept(result.deck); return; }
+        deck = result.deck;
+      }
+      throw new Error("其他设备正在更新题库，请稍后重试。");
+    }
+    const local = localData();
+    const now = new Date().toISOString();
+    const next = nextItems(local.items, op, force).map((item) => item.id ? item : { ...item, id: crypto.randomUUID(), created_at: now });
+    localStorage.setItem(KEY, JSON.stringify({ questions: next.map((q) => q.text), questionMeta: next.map(({ id, created_at }) => ({ id, created_at })), source: next.map((q) => q.text), mode: local.saved?.mode || "box", current: null, revealed: false, remaining: next.map((_, i) => i) }));
+    accept({ items: next });
+  }
+  function enqueue(op, force = false) {
+    waiting++; status();
+    const task = tail.then(async () => {
+      try {
+        await persistOperation(op, force);
+        if (!failed || (failed.kind === op.kind && failed.id === op.id)) { failed = null; notice = "已保存"; }
+        if (op.kind === "add" && $("new-questions").value === op.input) $("new-questions").value = "";
+        if (op.kind === "remove") drafts.delete(op.id);
+        return true;
+      } catch (error) { notice = error.message; failed = op; return false; }
+      finally { waiting--; renderRows(); if (!waiting && refreshQueued) { refreshQueued = false; void refresh(); } }
+    });
+    tail = task.then(() => {});
+    return task;
+  }
+  function saveDraft(id, force = false) {
+    const draft = drafts.get(id);
+    if (!draft || queuedUpdates.has(id)) return Promise.resolve(false);
+    clearTimeout(draft.timer); queuedUpdates.add(id);
+    // Read the latest text when its turn starts, rather than overwriting typing
+    // that happened while another row was being saved.
+    const prepare = tail.then(async () => {
+      const current = drafts.get(id);
+      if (!current) return false;
+      const op = { kind: "update", id, text: current.text, baseText: current.baseText };
+      waiting++; status();
+      try {
+        await persistOperation(op, force);
+        const latest = drafts.get(id);
+        if (latest?.text === op.text) drafts.delete(id);
+        else if (latest) latest.baseText = op.text.trim();
+        if (!failed || (failed.kind === op.kind && failed.id === op.id)) { failed = null; notice = "已保存"; }
+        return true;
+      } catch (error) { notice = error.message; failed = op; return false; }
+      finally { waiting--; renderRows(); }
+    });
+    tail = prepare.then(() => {});
+    return prepare.then((ok) => {
+      queuedUpdates.delete(id);
+      if (ok && drafts.has(id)) return saveDraft(id);
+      if (!waiting && refreshQueued) { refreshQueued = false; void refresh(); }
+      return ok;
+    });
   }
   $("add").addEventListener("click", () => {
-    const next = $("new-questions").value.split(/\r?\n/).map((q) => q.trim()).filter(Boolean);
-    if (!next.length || next.some((q) => q.length > 500) || items.length + next.length > 500) { status("请填写问题，每题不超过 500 字，列表最多 500 题。"); return; }
-    if (new Set([...items.map((item) => item.text.trim()), ...next]).size !== items.length + next.length) { status("有重复的问题，请修改后再添加。"); return; }
-    items.push(...next.map((text) => ({ id: null, _key: crypto.randomUUID(), text, created_at: null })));
-    $("new-questions").value = ""; changed(); renderRows();
+    if (!ready || waiting) return;
+    const input = $("new-questions").value;
+    const texts = input.split(/\r?\n/).map((q) => q.trim()).filter(Boolean);
+    if (!texts.length) { notice = "请填写问题。"; status(); return; }
+    if (new Set(texts).size !== texts.length || texts.some((text) => items.some((item) => item.text === text))) { notice = "有重复的问题。"; status(); return; }
+    return enqueue({ kind: "add", texts, input });
   });
-  $("save").addEventListener("click", async () => {
-    if (!ready || saving || !dirty) return;
-    const payload = items.map(({ id, text }) => ({ id, text: text.trim() }));
-    if (!payload.length || payload.length > 500 || payload.some((item) => !item.text || item.text.length > 500)
-      || new Set(payload.map((item) => item.text)).size !== payload.length) { status("请保留 1–500 个不同的问题，每题 1–500 字。"); return; }
-    saving = true; buttons(); status("正在保存…");
-    try {
-      if (cloudMode) {
-        let result = await cloud.change("edit", revision, { questions: payload });
-        // A draw on another device must not require discarding an unchanged question list.
-        if (result.status === "conflict" && signature(result.deck.items) === base) result = await cloud.change("edit", result.deck.revision, { questions: payload });
-        if (result.status === "conflict") { status("另一台设备修改了题库。草稿已保留，请重新载入后再编辑。"); return; }
-        accept(result.deck, true);
-      } else {
-        const previous = localData();
-        if (signature(previous.items) !== base) { status("另一个页面修改了题库。草稿已保留，请重新载入后再编辑。"); return; }
-        const now = new Date().toISOString();
-        const nextItems = items.map((item) => ({ id: item.id || crypto.randomUUID(), text: item.text.trim(), created_at: item.id ? item.created_at : now }));
-        localStorage.setItem(KEY, JSON.stringify({ questions: nextItems.map((item) => item.text), questionMeta: nextItems.map(({ id, created_at }) => ({ id, created_at })), source: nextItems.map((item) => item.text), mode: previous.saved?.mode || "box", current: null, revealed: false, remaining: nextItems.map((_, i) => i) }));
-        items = nextItems; base = signature(items); dirty = false; shown.clear(); renderRows();
-      }
-      status(cloudMode ? "已保存到云端，所有设备开始新一轮。" : "已保存到当前浏览器，开始新一轮。");
-    } catch (error) { status(`${error.message} 草稿已保留，请重新载入确认是否保存成功。`); }
-    finally { saving = false; buttons(); }
+  $("retry").addEventListener("click", () => {
+    if (!failed || waiting) return;
+    const op = failed;
+    if (op.kind === "load") { failed = null; return refresh(); }
+    if (op.kind === "update") return saveDraft(op.id, true);
+    return enqueue(op, true);
   });
-  $("reload").addEventListener("click", () => { void reload(true); });
   if (cloudMode) {
-    $("connection").textContent = "正在连接云端";
-    $("help").textContent = "保存后会同步到使用同一专属链接的所有设备，并重新开始一轮。请只把完整链接分享给一起使用的人。";
-    try { if (localData().saved?.questions?.length) $("import-local").hidden = false; } catch { /* Cloud access does not require local storage. */ }
+    $("connection").textContent = "云端题库";
+    try { if (localData().saved?.questions?.length) $("import-local").hidden = false; } catch { /* No local storage is required for cloud use. */ }
     $("import-local").addEventListener("click", () => {
-      try { items = localData().items.map((item) => ({ id: null, _key: crypto.randomUUID(), text: item.text, created_at: null })); shown.clear(); changed(); renderRows(); status("已填入此设备的本地题库，点击「保存修改」后同步到云端。"); }
-      catch { status("无法读取本地题库。"); }
+      try {
+        const existing = new Set(items.map((q) => q.text));
+        const texts = localData().items.map((q) => q.text).filter((text) => !existing.has(text));
+        if (!texts.length) { notice = "没有新的问题可导入。"; status(); return; }
+        return enqueue({ kind: "add", texts });
+      } catch { notice = "无法读取本地题库。"; status(); }
     });
-    const unsubscribe = cloud?.subscribe(() => { void reload(false); }, () => {});
-    const poll = setInterval(() => { if (!document.hidden) void reload(false); }, 5000);
+    const unsubscribe = cloud?.subscribe(() => { void refresh(); }, () => {});
+    const poll = setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
     window.addEventListener("beforeunload", () => { unsubscribe?.(); clearInterval(poll); });
-  }
-  window.addEventListener("beforeunload", (event) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });
-  void reload(true);
+  } else window.addEventListener("storage", (event) => { if (event.key === KEY) void refresh(); });
+  window.addEventListener("beforeunload", (event) => { if (drafts.size || waiting) { event.preventDefault(); event.returnValue = ""; } });
+  void refresh();
 })();
