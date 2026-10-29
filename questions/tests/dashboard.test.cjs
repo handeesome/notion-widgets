@@ -5,12 +5,13 @@ const vm=require('node:vm');
 const source=fs.readFileSync('questions/presentation.js','utf8')+'\n'+fs.readFileSync('questions/dashboard.js','utf8');
 const tick=async()=>{for(let i=0;i<35;i++)await Promise.resolve();};
 function setup({service=null}={}) {
-  const nodes=new Map();const timers=new Map();let timerID=0;
+  const nodes=new Map();const timers=new Map();const events={};let timerID=0;
   const node=()=>({children:[],handlers:{},style:{},scrollHeight:71,value:'',textContent:'',hidden:false,disabled:false,focus(){},append(...items){for(const item of items){this.children.push(item);item.parent=this;}},remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);},addEventListener(t,f){this.handlers[t]=f;},setAttribute(k,v){this[k]=v;}});
   const el=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
+  const frame={postMessage(){}};el('widget-preview').contentWindow=frame;
   let stored=JSON.stringify({questions:['旧问题'],questionMeta:[{id:'old-id',created_at:'2020-01-01T00:00:00.000Z'}],mode:'box'});
-  vm.runInNewContext(source,{window:{QUESTION_CARDS:['示例问题'],QuestionCloud:service?{create:()=>service}:null,addEventListener(){}},document:{hidden:false,activeElement:null,documentElement:{dataset:{}},getElementById:el,createElement:node},location:{search:service?'?id=cloud':''},URLSearchParams,Date,Intl,crypto:require('node:crypto').webcrypto,localStorage:{getItem:()=>stored,setItem:(k,v)=>{stored=v;}},setTimeout(fn){const id=++timerID;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),setInterval(){return 1;},clearInterval(){}});
-  return{el,rows:()=>el('question-rows').children,fire:(id,type='click')=>el(id).handlers[type](),flush(){for(const[id,fn]of[...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(stored)};
+  vm.runInNewContext(source,{window:{QUESTION_CARDS:['示例问题'],QuestionCloud:service?{create:()=>service}:null,addEventListener:(type,fn)=>{events[type]=fn;}},document:{hidden:false,activeElement:null,documentElement:{dataset:{}},getElementById:el,createElement:node},location:{origin:'https://widgets.test',search:service?'?id=cloud':''},URLSearchParams,Date,Intl,crypto:require('node:crypto').webcrypto,localStorage:{getItem:()=>stored,setItem:(k,v)=>{stored=v;}},setTimeout(fn){const id=++timerID;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),setInterval(){return 1;},clearInterval(){}});
+  return{el,events,previewEdit:(key,value,commit=false)=>events.message({origin:'https://widgets.test',source:frame,data:{type:'question-preview-edit',key,value,commit}}),rows:()=>el('question-rows').children,fire:(id,type='click')=>el(id).handlers[type](),flush(){for(const[id,fn]of[...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(stored)};
 }
 test('the eye reveals read-only text and editing requires a separate button',async()=>{
   const page=setup();await tick();const row=page.rows()[0];const input=row.children[2];const eye=row.children[0].children[1].children[0];
@@ -53,7 +54,7 @@ test('finishing editing saves a pending draft and returns to read-only paper tex
 });
 
 test('home copy auto-saves separately from the question list and survives later additions',async()=>{
-  const page=setup();await tick();const input=page.el('copy-fields').children[2].children[0];input.value='今天想聊些什么？';input.handlers.input();page.flush();await tick();
+  const page=setup();await tick();page.previewEdit('invitation','今天想聊些什么？');page.flush();await tick();
   assert.equal(page.saved().settings.invitation,'今天想聊些什么？');assert.deepEqual(page.saved().questions,['旧问题']);
   page.el('new-questions').value='新问题';await page.fire('add');assert.equal(page.saved().settings.invitation,'今天想聊些什么？');
 });
@@ -61,6 +62,15 @@ test('home copy auto-saves separately from the question list and survives later 
 test('cloud settings merge other fields and preserve question progress',async()=>{
   let deck={revision:3,settings:{name:'原名称'},current:0,revealed:true,remaining:[],items:[{id:'one',text:'原问题',created_at:'2020-01-01T00:00:00Z'}]};let writes=0;
   const service={load:async()=>JSON.parse(JSON.stringify(deck)),subscribe(){return()=>{};},async updateSettings(revision,settings){assert.equal(revision,deck.revision);writes++;if(writes===1){deck.settings.frontTop='别处的改动';deck.revision++;return{status:'conflict',deck};}deck={...deck,revision:deck.revision+1,settings:{...deck.settings,...settings}};return{status:'ok',deck};}};
-  const page=setup({service});await tick();const input=page.el('copy-fields').children[0].children[0];input.value='新的名称';input.handlers.input();page.flush();await tick();
+  const page=setup({service});await tick();page.previewEdit('name','新的名称');page.flush();await tick();
   assert.equal(deck.settings.name,'新的名称');assert.equal(deck.settings.frontTop,'别处的改动');assert.equal(deck.current,0);assert.equal(deck.revealed,true);assert.equal(writes,2);
+});
+
+test('preview toggle saves the default immediately and disallows theme or untrusted senders',async()=>{
+  const page=setup();await tick();page.previewEdit('mode','card',true);await tick();assert.equal(page.saved().settings.mode,'card');
+  page.previewEdit('theme','dark',true);page.events.message({origin:'https://widgets.test',source:{},data:{type:'question-preview-edit',key:'name',value:'恶意',commit:true}});page.flush();await tick();assert.equal(page.saved().settings.theme,'auto');assert.equal(page.saved().settings.name,'留一个问题');
+});
+
+test('leaving an untouched inline field cannot overwrite a remote change',async()=>{
+  const page=setup();await tick();page.previewEdit('name','未输入的旧内容',true);await tick();assert.equal(page.saved().settings,undefined);
 });

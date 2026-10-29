@@ -10,7 +10,6 @@
   if (cloudMode) widgetParams.set("id", params.get("id"));
   if (params.has("theme")) widgetParams.set("theme", params.get("theme"));
   $("widget-link").href = `./?${widgetParams}`;
-  $("preview-open").href = `./?${widgetParams}`;
   widgetParams.delete("theme");
   widgetParams.set("preview", "1");
   // Preview uses the real renderer but never writes draw/open state.
@@ -18,7 +17,7 @@
   let settings = window.QuestionPresentation.normalize();
   const settingDrafts = new Map();
   const settingQueued = new Set();
-  const settingInputs = new Map();
+  const copyKeys = new Set(["name", "frontTop", "invitation", "frontBottom", "backTop", "backBottom"]);
   const defaults = window.QUESTION_CARDS || [];
   const eye = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
   let items = [];
@@ -38,13 +37,9 @@
   function previewSettings() {
     const value = { ...settings };
     for (const [key, draft] of settingDrafts) value[key] = draft.value;
-    $("widget-preview").contentWindow?.postMessage({ type: "question-preview", settings: value }, location.origin);
+    $("widget-preview").contentWindow?.postMessage({ type: "question-preview", settings: value, ready }, location.origin);
   }
   function renderSettings() {
-    for (const [key, input] of settingInputs) {
-      input.disabled = !ready;
-      if (document.activeElement !== input) input.value = settingDrafts.get(key)?.value ?? settings[key];
-    }
     previewSettings();
   }
   function settingChanged(key, value, immediate) {
@@ -70,19 +65,21 @@
       return ok;
     });
   }
-  const copyLabels = { name: "名称", frontTop: "封面上方", invitation: "封面标题", frontBottom: "封面下方", backTop: "问题上方", backBottom: "问题下方" };
-  for (const [key, labelText] of Object.entries(copyLabels)) {
-    const label = document.createElement("label"); label.textContent = labelText;
-    const input = document.createElement("input"); input.type = "text"; input.maxLength = 100;
-    input.id = `setting-${key}`; label.append(input); $("copy-fields").append(label);
-    settingInputs.set(key, input);
-    input.addEventListener("input", () => settingChanged(key, input.value, false));
-    input.addEventListener("blur", () => { if (settingDrafts.has(key)) void saveSetting(key); });
-  }
-  for (const key of ["mode", "theme"]) {
-    const input = $(`setting-${key}`); settingInputs.set(key, input);
-    input.addEventListener("change", () => settingChanged(key, input.value, true));
-  }
+  window.addEventListener("message", (event) => {
+    if (event.origin !== location.origin || event.source !== $("widget-preview").contentWindow) return;
+    const data = event.data;
+    if (data?.type === "question-preview-size" && Number.isFinite(data.height) && data.height >= 320 && data.height <= 1200) {
+      $("widget-preview").style.height = `${Math.ceil(data.height)}px`; return;
+    }
+    if (!ready || data?.type !== "question-preview-edit" || typeof data.value !== "string" || data.value.length > 100) return;
+    if (data.key === "mode" ? !["card", "box"].includes(data.value) : !copyKeys.has(data.key)) return;
+    if (data.commit && data.key !== "mode") {
+      if (settingDrafts.get(data.key)?.value === data.value) void saveSetting(data.key);
+      return;
+    }
+    if (data.value !== (settingDrafts.get(data.key)?.value ?? settings[data.key])) settingChanged(data.key, data.value, data.key === "mode");
+    if (data.commit && settingDrafts.has(data.key)) void saveSetting(data.key);
+  });
   $("widget-preview").addEventListener("load", previewSettings);
   $("widget-preview").src = previewUrl;
   function resizeNewQuestions() {
@@ -193,7 +190,7 @@
       $("connection").textContent = cloudMode ? "云端题库" : "本地题库";
       if (!failed) notice = "";
     } catch (error) { ready = false; notice = error.message; failed = { kind: "load" }; }
-    finally { loading = false; status(); }
+    finally { loading = false; status(); renderSettings(); }
   }
   function nextItems(latest, op, force) {
     let next = latest.map((item) => ({ ...item }));

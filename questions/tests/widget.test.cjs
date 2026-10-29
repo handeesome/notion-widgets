@@ -7,18 +7,19 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const tick = async () => { for (let i=0;i<12;i++) await Promise.resolve(); };
 function setup({ questions=['甲','乙','丙'], stored=null, search='', reduced=false, blocked=false, service=null }={}) {
   const nodes=new Map(); const timers=new Map(); let timerId=0; const events={}; let persisted=stored;
+  const messages=[];const parent={postMessage:(value)=>messages.push(clone(value))};
   function el(id) {
     if(!nodes.has(id)) { const classes=new Set(); nodes.set(id,{ hidden:false,disabled:false,textContent:'',value:'',dataset:{},handlers:{},offsetWidth:100,
       addEventListener(type,fn){this.handlers[type]=fn;},setAttribute(k,v){this[k]=v;},
       classList:{add:(...xs)=>xs.forEach(x=>classes.add(x)),remove:(...xs)=>xs.forEach(x=>classes.delete(x)),contains:x=>classes.has(x),toggle:(x,on)=>on?classes.add(x):classes.delete(x)} }); }
     return nodes.get(id);
   }
-  const radios=[el('mode-card'),el('mode-box')];radios[0].value='card';radios[1].value='box';
-  vm.runInNewContext(source,{window:{QUESTION_CARDS:questions,QuestionCloud:service?{create:()=>service}:null,addEventListener:(type,fn)=>{events[type]=fn;}},
-    document:{hidden:false,documentElement:el('root'),getElementById:el,querySelectorAll:()=>radios,querySelector:()=>el('scene'),addEventListener(){}},
-    location:{search},URLSearchParams,localStorage:{getItem(){if(blocked)throw Error('blocked');return persisted;},setItem(k,v){if(blocked)throw Error('blocked');persisted=v;}},
+  const document={hidden:false,activeElement:null,documentElement:el('root'),getElementById:el,querySelector:()=>el('scene'),addEventListener(){}};
+  vm.runInNewContext(source,{window:{parent,QUESTION_CARDS:questions,QuestionCloud:service?{create:()=>service}:null,addEventListener:(type,fn)=>{events[type]=fn;}},
+    document,
+    location:{search,origin:'https://widgets.test'},URLSearchParams,localStorage:{getItem(){if(blocked)throw Error('blocked');return persisted;},setItem(k,v){if(blocked)throw Error('blocked');persisted=v;}},
     matchMedia:()=>({matches:reduced}),setTimeout(fn){const id=++timerId;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id),setInterval(){return 1;},clearInterval(){},Date});
-  return {el,events,fire:(id,type='click')=>el(id).handlers[type](),flush(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(persisted),snapshot:()=>persisted};
+  return {el,events,messages,document,receive:(data)=>events.message({origin:'https://widgets.test',source:parent,data}),fire:(id,type='click')=>el(id).handlers[type](),flush(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},saved:()=>JSON.parse(persisted),snapshot:()=>persisted};
 }
 function server() {
   let deck={questions:['云甲','云乙','云丙'],remaining:[0,1,2],current:null,revealed:false,revision:0};
@@ -53,21 +54,30 @@ test('blocked storage and empty decks do not break rendering',()=>{
 
 test('home copy and default appearance load from settings while URL overrides remain effective',()=>{
   const stored=JSON.stringify({settings:{name:'我们的对话',invitation:'今天聊什么？',frontBottom:'慢慢想',mode:'card',theme:'dark'}});
-  const p=setup({stored});assert.equal(p.el('widget-name').textContent,'我们的对话');assert.equal(p.el('invitation-title').textContent,'今天聊什么？');assert.equal(p.el('root').dataset.mode,'card');assert.equal(p.el('root').dataset.theme,'dark');
+  const p=setup({stored});assert.equal(p.el('widget-name').textContent,'我们的对话');assert.equal(p.el('invitation-title').textContent,'今天聊什么？');assert.equal(p.el('root').dataset.mode,'card');assert.equal(p.el('root').dataset.theme,'auto');
   const q=setup({stored,search:'?mode=box&theme=light'});assert.equal(q.el('root').dataset.mode,'box');assert.equal(q.el('root').dataset.theme,'light');
 });
 
-test('preview interactions never write to cloud or local storage',async()=>{
-  let writes=0;const service={async load(){return{questions:['测试题'],remaining:[],current:0,revealed:true,revision:1};},async change(){writes++;throw Error('preview wrote to cloud');},subscribe(){return()=>{};}};
-  const p=setup({service,search:'?id=shared&preview=1',reduced:true});await tick();assert.equal(p.el('card').classList.contains('is-revealed'),false);await p.fire('card-action');assert.equal(p.el('question-text').textContent,'测试题');assert.equal(writes,0);assert.equal(p.snapshot(),null);
+test('preview uses only a placeholder and never reads or writes cloud questions or local progress',async()=>{
+  let writes=0;let reads=0;const service={async load(){reads++;throw Error('preview read questions');},async change(){writes++;throw Error('preview wrote to cloud');},subscribe(){return()=>{};}};
+  const p=setup({service,search:'?id=shared&preview=1',reduced:true});await tick();assert.equal(p.el('card').classList.contains('is-revealed'),false);await p.fire('preview-flip');assert.equal(p.el('question-text').textContent,'这里会显示抽到的问题。');assert.equal(writes,0);assert.equal(reads,0);assert.equal(p.snapshot(),null);assert.equal(p.el('preview-label').hidden,false);
   const q=setup({search:'?preview=1',reduced:true});q.fire('card-action');assert.equal(q.snapshot(),null);assert.equal(q.el('manage-questions').hidden,true);
 });
 
-test('a settings update does not close an already opened preview',async()=>{
-  let changed;let deck={questions:['测试题'],remaining:[],current:0,revealed:true,revision:1};
-  const service={async load(){return JSON.parse(JSON.stringify(deck));},subscribe(fn){changed=fn;return()=>{};}};
-  const p=setup({service,search:'?id=shared&preview=1',reduced:true});await tick();p.fire('card-action');deck={...deck,revision:2,settings:{backBottom:'慢慢聊'}};changed();await tick();
+test('a parent settings update does not close an already opened preview',()=>{
+  const p=setup({search:'?preview=1',reduced:true});p.fire('preview-flip');p.receive({type:'question-preview',ready:true,settings:{backBottom:'慢慢聊'}});
   assert.equal(p.el('card').classList.contains('is-revealed'),true);assert.equal(p.el('card-note').textContent,'慢慢聊');
+});
+
+test('preview toggle sends the selected default and inline typing keeps the caret node intact',()=>{
+  const p=setup({search:'?preview=1',reduced:true});p.receive({type:'question-preview',ready:true,settings:{mode:'box'}});p.fire('mode-toggle');assert.deepEqual(p.messages.at(-1),{type:'question-preview-edit',key:'mode',value:'card',commit:true});
+  const text=p.el('invitation-title');p.document.activeElement=text;text.textContent='新文案';text.handlers.input({isComposing:false});assert.deepEqual(p.messages.at(-1),{type:'question-preview-edit',key:'invitation',value:'新文案',commit:false});
+  p.receive({type:'question-preview',ready:true,settings:{invitation:'旧响应',mode:'card'}});assert.equal(text.textContent,'新文案');assert.equal(text.contentEditable,'plaintext-only');text.handlers.blur();assert.equal(p.messages.at(-1).commit,true);assert.equal(p.snapshot(),null);
+  p.document.activeElement=null;p.fire('preview-flip');assert.equal(text.tabIndex,-1);assert.equal(text.contentEditable,'false');assert.equal(p.el('back-top').tabIndex,0);
+});
+
+test('home toggle uses one switch and preserves the shared deck state',()=>{
+  const p=setup({reduced:true});p.fire('card-action');const before=p.saved();p.fire('mode-toggle');assert.equal(p.el('mode-toggle')['aria-checked'],'false');assert.equal(p.el('root').dataset.mode,'card');assert.equal(p.saved().current,before.current);assert.equal(p.saved().revealed,before.revealed);
 });
 test('management uses the same deck in a separate dashboard URL',()=>{
   const p=setup({search:'?id=shared&theme=dark',service:server().service});assert.equal(p.el('manage-questions').href,'./dashboard.html?id=shared&theme=dark');assert.equal(p.el('root').dataset.theme,'dark');

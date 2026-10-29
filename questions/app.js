@@ -4,8 +4,11 @@
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const cloudMode = params.has("id");
-  const cloud = cloudMode ? window.QuestionCloud?.create(location.search) : null;
   const preview = params.get("preview") === "1";
+  const cloud = cloudMode && !preview ? window.QuestionCloud?.create(location.search) : null;
+  const PREVIEW_QUESTION = "这里会显示抽到的问题。";
+  const copyFields = { name: ["widget-name", "名称"], frontTop: ["front-top", "封面上方"], invitation: ["invitation-title", "封面标题"], frontBottom: ["front-bottom", "封面下方"], backTop: ["back-top", "问题上方"], backBottom: ["card-note", "问题下方"] };
+  let previewReady = false;
   let presentation = window.QuestionPresentation.normalize();
   let previewPresentation = null;
   let modeChosen = false;
@@ -16,7 +19,7 @@
   if (["light", "dark"].includes(theme)) manageParams.set("theme", theme);
   $("manage-questions").href = `./dashboard.html${manageParams.size ? `?${manageParams}` : ""}`;
   const defaults = [...new Set((window.QUESTION_CARDS || []).filter((q) => typeof q === "string").map((q) => q.trim()).filter(Boolean))];
-  let questions = cloudMode ? [] : defaults;
+  let questions = preview ? [PREVIEW_QUESTION] : cloudMode ? [] : defaults;
   let customQuestions = null;
   let questionMeta = [];
   let remaining = questions.map((_, i) => i);
@@ -24,7 +27,7 @@
   let revealed = false;
   let mode = params.get("mode") || "box";
   let revision = -1;
-  let ready = !cloudMode;
+  let ready = preview || !cloudMode;
   let writing = false;
   let syncing = false;
   let queued = false;
@@ -38,6 +41,10 @@
   function loadLocal() {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY));
+      if (preview) {
+        presentation = window.QuestionPresentation.normalize(previewPresentation || saved?.settings);
+        return;
+      }
       const custom = Array.isArray(saved?.questions) ? saved.questions.filter((q) => typeof q === "string" && q.trim()) : [];
       questions = custom.length ? [...new Set(custom)] : defaults;
       customQuestions = custom.length ? questions : null;
@@ -53,7 +60,6 @@
         remaining = saved.remaining; current = saved.current; revealed = current !== null && saved.revealed !== false;
       }
       if (current === null) remaining = questions.map((_, i) => i);
-      if (preview) { current = null; revealed = false; remaining = questions.map((_, i) => i); }
     } catch { warning(); }
   }
   function persist() {
@@ -64,16 +70,24 @@
   }
   function message(text) { $("sync-status").textContent = text; $("sync-status").hidden = !text; }
   function connected() { message(""); }
+  function copy(key, value = presentation[key]) {
+    const element = $(copyFields[key][0]);
+    if (!preview || document.activeElement !== element) element.textContent = value;
+  }
   function render(animate = false) {
     if (!params.has("mode") && !modeChosen) mode = presentation.mode;
-    document.documentElement.dataset.theme = ["light", "dark"].includes(theme) ? theme : presentation.theme;
-    $("widget-name").textContent = presentation.name;
-    $("front-top").textContent = presentation.frontTop;
-    $("front-bottom").textContent = presentation.frontBottom;
-    $("back-top").textContent = presentation.backTop;
+    document.documentElement.dataset.theme = ["light", "dark"].includes(theme) ? theme : "auto";
+    for (const key of Object.keys(copyFields)) copy(key);
     document.documentElement.dataset.mode = mode;
-    document.querySelectorAll('[name="mode"]').forEach((input) => { input.checked = input.value === mode; });
+    $("mode-toggle").setAttribute("aria-checked", String(mode === "box"));
+    $("mode-toggle").disabled = preview && !previewReady;
     const open = current !== null && revealed;
+    if (preview) for (const [key, [id]] of Object.entries(copyFields)) {
+      const visible = key === "name" || (["backTop", "backBottom"].includes(key) ? open : !open);
+      const editable = previewReady && visible ? "plaintext-only" : "false";
+      if ($(id).contentEditable !== editable) $(id).contentEditable = editable;
+      $(id).tabIndex = previewReady && visible ? 0 : -1;
+    }
     const card = $("card");
     const changed = card.classList.contains("is-revealed") !== open;
     const newQuestion = open && $("question-text").textContent !== questions[current];
@@ -107,24 +121,23 @@
         flipTimer = setTimeout(() => { card.classList.remove("cycle"); flipping = false; updateDisabled(); }, 650);
       }
     }
-    $("card-note").textContent = presentation.backBottom;
-    $("invitation-title").textContent = ready ? presentation.invitation : "连接你的问题盲盒。";
+    copy("invitation", ready ? presentation.invitation : "连接你的问题盲盒。");
+    $("preview-flip").textContent = open ? "返回封面" : "预览问题";
     $("card-action").setAttribute("aria-label", open ? mode === "box" ? "抽取下一个盲盒" : "抽取下一个问题" : "打开这个盲盒");
     updateDisabled();
   }
   function updateDisabled() {
     $("card-action").disabled = !ready || writing || flipping || !questions.length;
+    $("preview-flip").disabled = !ready || flipping;
     document.querySelector(".card-scene").setAttribute("aria-busy", String(writing));
   }
   function applyDeck(deck, animate) {
     if (deck.revision <= revision) return;
     const wasLoaded = revision >= 0;
-    const resetPreview = preview && (!wasLoaded || JSON.stringify(questions) !== JSON.stringify(deck.questions));
     questions = deck.questions;
-    if (!preview) { remaining = deck.remaining; current = deck.current; revealed = deck.revealed; }
-    else if (resetPreview) { remaining = questions.map((_, i) => i); current = null; revealed = false; }
+    remaining = deck.remaining; current = deck.current; revealed = deck.revealed;
     revision = deck.revision;
-    presentation = window.QuestionPresentation.normalize(previewPresentation || deck.settings);
+    presentation = window.QuestionPresentation.normalize(deck.settings);
     render(animate && wasLoaded && !document.hidden);
   }
   async function refresh(animate = false) {
@@ -158,27 +171,65 @@
     current = candidates[Math.floor(Math.random() * candidates.length)];
     remaining = remaining.filter((i) => i !== current); revealed = openImmediately;
   }
-  $("card-action").addEventListener("click", () => {
+  function activateCard() {
     if (!ready || writing || flipping || !questions.length) return;
     if (cloudMode && !preview) return current === null ? change("draw", true) : revealed ? change("draw", false) : change("reveal");
     if (current === null) drawLocal(true);
     else if (revealed) drawLocal(false);
     else revealed = true;
     render(true); persist();
+  }
+  $("card-action").addEventListener("click", activateCard);
+  $("mode-toggle").addEventListener("click", () => {
+    if (preview && !previewReady) return;
+    modeChosen = true; mode = mode === "box" ? "card" : "box";
+    if (preview) {
+      presentation.mode = mode;
+      window.parent.postMessage({ type: "question-preview-edit", key: "mode", value: mode, commit: true }, location.origin);
+    }
+    render(false); persist();
   });
-  document.querySelectorAll('[name="mode"]').forEach((input) => input.addEventListener("change", () => {
-    modeChosen = true; mode = input.value; render(false); persist();
-  }));
   if (preview) {
+    document.documentElement.classList.add("preview-mode");
     $("manage-questions").hidden = true;
+    $("preview-label").hidden = false;
+    $("preview-flip").hidden = false;
+    $("preview-flip").addEventListener("click", activateCard);
+    for (const [key, [id, label]] of Object.entries(copyFields)) {
+      const element = $(id);
+      element.classList.add("preview-copy");
+      element.setAttribute("role", "textbox"); element.setAttribute("aria-label", `编辑${label}`);
+      element.dataset.placeholder = label;
+      element.contentEditable = "false";
+      function publish(commit = false) {
+        if (!previewReady) return;
+        const value = element.textContent.replace(/[\r\n]+/g, " ").slice(0, 100);
+        if (value !== element.textContent) element.textContent = value;
+        presentation[key] = value;
+        window.parent.postMessage({ type: "question-preview-edit", key, value, commit }, location.origin);
+      }
+      element.addEventListener("input", (event) => { if (!event.isComposing) publish(); });
+      element.addEventListener("compositionend", () => publish());
+      element.addEventListener("blur", () => publish(true));
+      element.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.isComposing) { event.preventDefault(); element.blur(); }
+      });
+    }
     window.addEventListener("message", (event) => {
       if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== "question-preview") return;
       previewPresentation = window.QuestionPresentation.normalize(event.data.settings);
       presentation = previewPresentation;
+      previewReady = event.data.ready === true;
       modeChosen = false; render(false);
     });
+    if (window.ResizeObserver) {
+      const widget = document.querySelector(".widget");
+      new window.ResizeObserver(() => {
+        window.parent.postMessage({ type: "question-preview-size", height: Math.max(320, Math.min(1200, Math.ceil(widget.getBoundingClientRect().height))) }, location.origin);
+      }).observe(widget);
+    }
   }
-  if (cloudMode) {
+  if (cloudMode && !preview) {
     void refresh(false);
     const unsubscribe = cloud?.subscribe(() => { void refresh(true); }, () => {});
     const poll = setInterval(() => { if (!document.hidden) void refresh(true); }, 5000);

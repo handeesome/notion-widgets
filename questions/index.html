@@ -6,23 +6,19 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="referrer" content="no-referrer" />
   <title>留一个问题 · 问题盲盒</title>
-  <link rel="stylesheet" href="./styles.css?v=6" />
+  <link rel="stylesheet" href="./styles.css?v=7" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="./supabase-config.js?v=4" defer></script>
   <script src="./questions.js?v=4" defer></script>
   <script src="./cloud.js?v=6" defer></script>
   <script src="./presentation.js?v=6" defer></script>
-  <script src="./app.js?v=6" defer></script>
+  <script src="./app.js?v=7" defer></script>
 </head>
 <body>
   <main class="widget">
     <header class="toolbar">
       <span class="wordmark"><span class="small-star" aria-hidden="true">✳</span><span id="widget-name">留一个问题</span></span>
-      <fieldset class="mode-switch">
-        <legend class="sr-only">呈现方式</legend>
-        <label><input type="radio" name="mode" value="card" /><span>卡片</span></label>
-        <label><input type="radio" name="mode" value="box" checked /><span>盲盒</span></label>
-      </fieldset>
+      <div class="mode-switch"><span>卡片</span><button id="mode-toggle" type="button" role="switch" aria-label="盲盒模式" aria-checked="true"><span class="toggle-thumb" aria-hidden="true"></span></button><span>盲盒</span></div>
     </header>
     <section class="card-scene" aria-label="问题盲盒" aria-busy="false">
       <div class="card" id="card">
@@ -37,11 +33,12 @@
         </div>
         <div class="card-face card-back" id="card-back" aria-hidden="true">
           <div class="card-top"><span id="back-top">留给此刻的问题</span><span class="card-mark" aria-hidden="true">↗</span></div>
-          <div class="card-content question"><span class="question-quote" aria-hidden="true">“</span><h1 id="question-text" aria-live="polite"></h1></div>
+          <div class="card-content question"><span class="question-quote" aria-hidden="true">“</span><span class="preview-label" id="preview-label" hidden>示例问题</span><h1 id="question-text" aria-live="polite"></h1></div>
           <div class="card-bottom"><span id="card-note">听听彼此的答案</span></div>
         </div>
       </div>
       <button class="card-action" id="card-action" type="button" aria-label="打开这个盲盒"></button>
+      <button class="preview-flip" id="preview-flip" type="button" hidden>预览问题</button>
       <a class="manage-icon" id="manage-questions" href="./dashboard.html" target="_blank" rel="noopener noreferrer" aria-label="在新标签页添加问题" title="添加问题"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 3v18M11 12h5m-2.5-2.5v5"/></svg></a>
     </section>
     <p class="sync-status" id="sync-status" role="status" hidden></p>
