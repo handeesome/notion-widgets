@@ -6,7 +6,7 @@ const source=fs.readFileSync('questions/presentation.js','utf8')+'\n'+fs.readFil
 const tick=async()=>{for(let i=0;i<35;i++)await Promise.resolve();};
 function setup({service=null}={}) {
   const nodes=new Map();const timers=new Map();const events={};let timerID=0;
-  const node=()=>({children:[],handlers:{},style:{},scrollHeight:71,value:'',textContent:'',hidden:false,disabled:false,focus(){},showModal(){this.open=true;},close(){this.open=false;this.handlers.close?.();},replaceChildren(...items){this.children=[];this.append(...items);},append(...items){for(const item of items){this.children.push(item);item.parent=this;}},remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);},addEventListener(t,f){this.handlers[t]=f;},setAttribute(k,v){this[k]=v;}});
+  const node=()=>({children:[],handlers:{},style:{},scrollHeight:71,value:'',textContent:'',hidden:false,disabled:false,focus(){},showModal(){this.open=true;},close(){this.open=false;this.handlers.close?.();},replaceChildren(...items){this.children=[];this.append(...items);},append(...items){for(const item of items){this.children.push(item);item.parent=this;}},after(item){item.parent=this.parent;this.parent.children.splice(this.parent.children.indexOf(this)+1,0,item);},remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);},addEventListener(t,f){this.handlers[t]=f;},setAttribute(k,v){this[k]=v;}});
   const el=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
   const frame={postMessage(){}};el('widget-preview').contentWindow=frame;
   let stored=JSON.stringify({questions:['旧问题'],questionMeta:[{id:'old-id',created_at:'2020-01-01T00:00:00.000Z'}],mode:'box'});
@@ -89,4 +89,12 @@ test('a concurrent edit prevents the entire batch from overwriting or partially 
   const service={load:async()=>JSON.parse(JSON.stringify(deck)),subscribe(){return()=>{};},async change(action,version,{questions}){writes++;deck={revision:deck.revision+1,items:questions.map(q=>({...q,id:q.id||'new-id',created_at:'2020-01-01T00:00:00Z'}))};return{status:'ok',deck};}};
   const page=setup({service});await tick();page.fire('open-batch');const item=page.el('batch-existing').children[0];item.textContent='本机修改';item.handlers.input({isComposing:false});page.el('batch-input').value='• 待加入的问题';deck.items[0].text='别处修改';deck.revision++;
   await page.fire('submit-batch');assert.equal(writes,0);assert.equal(page.el('batch-dialog').open,true);assert.equal(page.el('batch-retry').hidden,false);assert.equal(item.textContent,'本机修改');await page.fire('batch-retry');assert.deepEqual(deck.items.map(q=>q.text),['本机修改','待加入的问题']);assert.equal(writes,1);
+});
+
+test('the unified list continues from its final bullet and always leaves a blank row',async()=>{
+  const page=setup();await tick();page.fire('open-batch');const list=page.el('batch-existing');const first=list.children.at(-1);assert.equal(first['data-placeholder'],'继续添加问题…');first.textContent='末尾新增的问题';first.handlers.input({isComposing:false});assert.equal(list.children.at(-1).textContent,'');first.handlers.keydown({key:'Enter',isComposing:false,preventDefault(){}});const next=list.children.at(-1);next.textContent='再加一个问题';next.handlers.input({isComposing:false});await page.fire('submit-batch');assert.deepEqual(page.saved().questions,['旧问题','末尾新增的问题','再加一个问题']);
+});
+
+test('pasting a bullet list at the end creates individual editable bullets',async()=>{
+  const page=setup();await tick();page.fire('open-batch');const list=page.el('batch-existing');const tail=list.children.at(-1);let prevented=false;tail.handlers.paste({clipboardData:{getData:()=> '• 粘贴问题甲\n- 粘贴问题乙'},preventDefault(){prevented=true;}});assert.equal(prevented,true);assert.deepEqual(list.children.map(n=>n.textContent),['旧问题','粘贴问题甲','粘贴问题乙','']);await page.fire('submit-batch');assert.deepEqual(page.saved().questions,['旧问题','粘贴问题甲','粘贴问题乙']);
 });

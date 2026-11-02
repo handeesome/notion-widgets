@@ -43,14 +43,14 @@
 .add-actions { display:flex; align-items:center; justify-content:flex-end; gap:14px; margin-top:auto; }
 .add-actions .primary { min-height:34px; padding:7px 12px; }
 .batch-dialog { width:min(560px,calc(100% - 32px)); max-height:85vh; overflow:auto; overscroll-behavior:contain; padding:26px; border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); }
-.batch-dialog::backdrop { background:var(--bg,#fff); }
+.batch-dialog::backdrop { background:rgba(0,0,0,.85); }
 html[data-batch-open],html[data-batch-open] body { overflow:hidden; overscroll-behavior:none; }
 .batch-heading { display:flex; align-items:center; justify-content:space-between; }.batch-heading h2 { font-size:21px; font-family:SimSun,serif; font-weight:400; margin:0; }.batch-heading button { background:transparent; border:0; font-size:24px; color:var(--muted); }
-.batch-dialog h3,.batch-dialog label { font-size:12px; font-weight:400; color:var(--muted); display:block; margin:22px 0 10px; }
-.batch-existing { max-height:180px; overflow:auto; padding-left:24px; font-family:SimSun,serif; font-size:16px; line-height:1.9; }.batch-existing li { margin-bottom:8px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.batch-existing { max-height:48vh; min-height:180px; overflow:auto; padding:0 8px 0 24px; margin:26px 0 20px; font-family:SimSun,serif; font-size:17px; line-height:1.9; overscroll-behavior:contain; }.batch-existing li { margin-bottom:10px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .batch-existing li[contenteditable] { cursor:text; outline:none; border-radius:3px; min-height:1.8em; }
 .batch-existing li[contenteditable]:hover,.batch-existing li[contenteditable]:focus { background:var(--soft); }
-.batch-dialog textarea { width:100%; padding:12px; resize:vertical; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); font-size:15px; line-height:1.8; }
+.batch-existing li[data-placeholder]:empty::before { content:attr(data-placeholder); color:var(--muted); opacity:.65; pointer-events:none; }
+.batch-existing li[data-placeholder]:empty::marker { color:var(--muted); }
 #batch-status { color:var(--muted); font-size:12px; line-height:1.8; }
 @media(max-width:760px) { .workspace { grid-template-columns:1fr; gap:20px; } .preview-panel { max-width:580px; width:100%; margin:auto; } .add-panel { margin:0 4px; } }
 @media(max-width:480px) { .dashboard { width:calc(100% - 28px); padding-top:24px; } .dashboard-intro { margin-top:36px; } .question-rows { gap:20px; } .question-row { padding:29px 18px 18px; } .add-panel { padding:34px 22px 22px; } .primary,.secondary { padding:8px 11px; } }

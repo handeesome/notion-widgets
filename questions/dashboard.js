@@ -35,8 +35,59 @@
   const rows = new Map();
   const queuedUpdates = new Set();
   let batchBase = [];
+  let batchRows = [];
   const batchEdits = new Map();
   const parseQuestions = (input) => [...new Set(input.split(/\r?\n/).map(q => q.replace(/^\s*(?:[•●◦▪]\s*|[-*]\s+)/, "").trim()).filter(Boolean))];
+  function syncBatchRows() {
+    for (const row of batchRows) if (row.item) {
+      if (row.node.textContent === row.item.text) batchEdits.delete(row.item.id);
+      else batchEdits.set(row.item.id, row.node.textContent);
+    }
+    $("batch-input").value = batchRows.filter(row => !row.item).map(row => row.node.textContent).filter(text => text.trim()).join("\n");
+    notice = ""; status();
+  }
+  function focusBatchRow(row) {
+    row.node.focus();
+    const selection = window.getSelection?.();
+    if (selection && document.createRange) {const range=document.createRange();range.selectNodeContents(row.node);range.collapse(false);selection.removeAllRanges();selection.addRange(range);}
+  }
+  function trailingBatchRow() {
+    if (!batchRows.length || batchRows.at(-1).item || batchRows.at(-1).node.textContent.trim()) createBatchRow();
+  }
+  function createBatchRow(item = null, text = "", after = null) {
+    const li = document.createElement("li"); li.textContent = text; li.contentEditable = "plaintext-only";
+    li.setAttribute("role", "textbox"); li.setAttribute("aria-label", item ? `修改问题：${item.text}` : "添加新问题");
+    if (!item) li.setAttribute("data-placeholder", "继续添加问题…");
+    const row = {item, node:li};
+    if (after) {after.node.after(li);batchRows.splice(batchRows.indexOf(after)+1,0,row);}
+    else {$("batch-existing").append(li);batchRows.push(row);}
+    function edit() {
+      const value=li.textContent.replace(/[\r\n]+/g," ");if(value!==li.textContent)li.textContent=value;
+      trailingBatchRow();syncBatchRows();
+    }
+    li.addEventListener("input", event => {if(!event.isComposing)edit();});
+    li.addEventListener("compositionend",edit);
+    li.addEventListener("keydown", event => {
+      if(event.key!=="Enter"||event.isComposing)return;
+      event.preventDefault();
+      if(!li.textContent.trim()&&!item)return;
+      const next=batchRows[batchRows.indexOf(row)+1];
+      focusBatchRow(next&&!next.item&&!next.node.textContent ? next : createBatchRow(null,"",row));
+      trailingBatchRow();syncBatchRows();
+    });
+    li.addEventListener("paste", event => {
+      const pasted=event.clipboardData?.getData("text/plain");if(!pasted)return;
+      event.preventDefault();
+      const lines=pasted.split(/\r?\n/).map(q=>q.replace(/^\s*(?:[•●◦▪]\s*|[-*]\s+)/,"")).filter(q=>q.trim());if(!lines.length)return;
+      let head=li.textContent,tail="";
+      const selection=window.getSelection?.();
+      if(selection?.rangeCount){const range=selection.getRangeAt(0);if(li.contains(range.startContainer)&&li.contains(range.endContainer)){const before=range.cloneRange();before.selectNodeContents(li);before.setEnd(range.startContainer,range.startOffset);const ending=range.cloneRange();ending.selectNodeContents(li);ending.setStart(range.endContainer,range.endOffset);head=before.toString();tail=ending.toString();}}
+      li.textContent=head+lines[0]+(lines.length===1?tail:"");
+      let last=row;for(let i=1;i<lines.length;i++)last=createBatchRow(null,lines[i]+(i===lines.length-1?tail:""),last);
+      trailingBatchRow();syncBatchRows();focusBatchRow(last);
+    });
+    return row;
+  }
   function previewSettings() {
     const value = { ...settings };
     for (const [key, draft] of settingDrafts) value[key] = draft.value;
@@ -315,22 +366,12 @@
   $("new-questions").addEventListener("input", resizeNewQuestions);
   $("open-batch").addEventListener("click", () => {
     batchBase = items.map(item => ({...item})); batchEdits.clear();
-    $("batch-existing").replaceChildren(...batchBase.map((item, index) => {
-      const li = document.createElement("li"); li.textContent = item.text; li.contentEditable = "plaintext-only";
-      li.setAttribute("role", "textbox"); li.setAttribute("aria-label", `修改第 ${index + 1} 条问题`);
-      function edit() {
-        const text = li.textContent.replace(/[\r\n]+/g, " ");
-        if (text !== li.textContent) li.textContent = text;
-        if (text === item.text) batchEdits.delete(item.id); else batchEdits.set(item.id, text);
-        notice = ""; status();
-      }
-      li.addEventListener("input", event => { if (!event.isComposing) edit(); });
-      li.addEventListener("compositionend", edit);
-      li.addEventListener("keydown", event => { if (event.key === "Enter" && !event.isComposing) {event.preventDefault(); li.blur();} });
-      return li;
-    }));
+    const pending=parseQuestions($("batch-input").value);batchRows=[];$("batch-existing").replaceChildren();
+    batchBase.forEach(item=>createBatchRow(item,item.text));
+    pending.forEach(text=>createBatchRow(null,text));trailingBatchRow();
     document.documentElement.dataset.batchOpen = "true";
     $("batch-dialog").showModal();
+    $("batch-existing").scrollTop=$("batch-existing").scrollHeight;
   });
   $("batch-dialog").addEventListener("close", () => {delete document.documentElement.dataset.batchOpen; batchEdits.clear();});
   $("close-batch").addEventListener("click", () => $("batch-dialog").close());
@@ -379,6 +420,6 @@
     const poll = setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
     window.addEventListener("beforeunload", () => { unsubscribe?.(); clearInterval(poll); });
   } else window.addEventListener("storage", (event) => { if (event.key === KEY) void refresh(); });
-  window.addEventListener("beforeunload", (event) => { if (drafts.size || settingDrafts.size || batchEdits.size || waiting) { event.preventDefault(); event.returnValue = ""; } });
+  window.addEventListener("beforeunload", (event) => { if (drafts.size || settingDrafts.size || batchEdits.size || ($("batch-dialog").open && $("batch-input").value.trim()) || waiting) { event.preventDefault(); event.returnValue = ""; } });
   void refresh();
 })();
