@@ -44,7 +44,7 @@
    if(cloud){const result=await cloud.tableChange(action,revision,slot,value);accept(result.deck,true);if(result.status==='conflict')status('其他设备刚更新了卡桌，请再点一次。');else status();}
    else{const result=window.QuestionTable.act(table,remaining,questions.length,action,slot,value);table=result.table;remaining=result.remaining;saveLocal();render(true);status();}
    if(action==='draw'&&!matchMedia('(prefers-reduced-motion: reduce)').matches){clearTimeout(motionTimer);motionTimer=setTimeout(()=>{busy=false;render(true);},600);return;}
-  }catch(e){status(e.message);if(cloud)ready=false;}busy=false;render(true);}
+  }catch(e){status(e.message);if(cloud&&!e.message.includes('题目不足'))ready=false;}busy=false;render(true);}
  $('play-toggle').addEventListener('click',()=>act('configure',0,{play:table.play==='shared'?'individual':'shared',players:table.players}));
  for(const n of [2,3])$(n===2?'two-players':'three-players').addEventListener('click',()=>{if(n!==table.players)void act('configure',0,{play:table.play,players:n});});
  $('next-turn').addEventListener('click',()=>act('turn'));$('reset-table').addEventListener('click',()=>act('reset'));

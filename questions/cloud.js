@@ -46,6 +46,8 @@
         });
         if (!response.ok) {
           if (response.status === 404) throw new Error("云端尚未初始化，请先运行 questions/supabase-setup.sql。");
+          const failure = await response.json().catch(() => null);
+          if (failure?.message === 'Not enough questions') throw new Error('题目不足，请先收回一张卡片。');
           throw new Error("无法访问云端，请检查网络和 Supabase 配置后重试。");
         }
         const result = await response.json();
