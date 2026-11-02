@@ -61,3 +61,7 @@ http://localhost:4174/configure.html?id=你的-gallery-id
 ## 本地回归检查
 
 有 Node.js 时，在仓库根目录运行 `node --test gallery/tests/image-upload.test.cjs`。测试模拟浏览器返回 WebP 或 PNG、HEIC 解码失败及文件类型缺失等情况，并检查上传格式和后台规则的一致性；不连接实际 Supabase，也不替代 iPhone 真机验证。
+
+## 个人域名托管
+
+同一组件也由个人网站 Cloudflare Worker 直接托管于 https://www.ducenhan.com/widgets/gallery/，配置页为该路径下 configure.html。替换原 GitHub Pages 链接时保留完整 id 等查询参数；更换域名的本地存储不自动迁移。网站每次构建从本仓库 main 同步资源。

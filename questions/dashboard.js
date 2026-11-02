@@ -74,7 +74,7 @@
       return;
     }
     if (!ready || data?.type !== "question-preview-edit" || typeof data.value !== "string" || data.value.length > 100) return;
-    if (data.key === "mode" ? !["card", "box"].includes(data.value) : !copyKeys.has(data.key)) return;
+    if (!copyKeys.has(data.key)) return;
     if (data.commit && data.key !== "mode") {
       if (settingDrafts.get(data.key)?.value === data.value) void saveSetting(data.key);
       return;
@@ -95,6 +95,9 @@
     $("retry").hidden = !failed;
     $("retry").disabled = !!waiting;
     $("add").disabled = !ready || !!waiting;
+    $("open-batch").disabled = !ready;
+    $("submit-batch").disabled = !ready || !!waiting;
+    $("batch-status").textContent = waiting ? "正在保存…" : notice;
     $("import-local").disabled = !ready || !!waiting;
     $("question-count").textContent = `${items.length} 个问题`;
   }
@@ -252,9 +255,10 @@
       try {
         await persistOperation(op, force);
         if (!failed || (failed.kind === op.kind && failed.id === op.id && failed.key === op.key)) { failed = null; notice = "已保存"; }
-        if (op.kind === "add" && $("new-questions").value === op.input) {
-          $("new-questions").value = "";
-          resizeNewQuestions();
+        if (op.kind === "add" && $(op.field || "new-questions").value === op.input) {
+          $(op.field || "new-questions").value = "";
+          if (op.field === "batch-input") $("batch-dialog").close();
+          else resizeNewQuestions();
         }
         if (op.kind === "remove") drafts.delete(op.id);
         return true;
@@ -294,6 +298,19 @@
     });
   }
   $("new-questions").addEventListener("input", resizeNewQuestions);
+  $("open-batch").addEventListener("click", () => {
+    $("batch-existing").replaceChildren(...items.map((item) => { const li=document.createElement("li"); li.textContent=item.text; return li; }));
+    $("batch-dialog").showModal();
+  });
+  $("close-batch").addEventListener("click", () => $("batch-dialog").close());
+  $("submit-batch").addEventListener("click", () => {
+    if (!ready || waiting) return;
+    const input=$("batch-input").value;
+    const existing=new Set(items.map(q=>q.text));
+    const texts=[...new Set(input.split(/\r?\n/).map(q=>q.trim()).filter(Boolean))].filter(q=>!existing.has(q));
+    if (!texts.length) { notice="没有新的问题可添加。"; status(); return; }
+    return enqueue({kind:"add",texts,input,field:"batch-input"});
+  });
   window.addEventListener("resize", resizeNewQuestions);
   resizeNewQuestions();
   $("add").addEventListener("click", () => {

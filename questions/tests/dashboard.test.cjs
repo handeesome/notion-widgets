@@ -6,7 +6,7 @@ const source=fs.readFileSync('questions/presentation.js','utf8')+'\n'+fs.readFil
 const tick=async()=>{for(let i=0;i<35;i++)await Promise.resolve();};
 function setup({service=null}={}) {
   const nodes=new Map();const timers=new Map();const events={};let timerID=0;
-  const node=()=>({children:[],handlers:{},style:{},scrollHeight:71,value:'',textContent:'',hidden:false,disabled:false,focus(){},append(...items){for(const item of items){this.children.push(item);item.parent=this;}},remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);},addEventListener(t,f){this.handlers[t]=f;},setAttribute(k,v){this[k]=v;}});
+  const node=()=>({children:[],handlers:{},style:{},scrollHeight:71,value:'',textContent:'',hidden:false,disabled:false,focus(){},showModal(){this.open=true;},close(){this.open=false;},replaceChildren(...items){this.children=[];this.append(...items);},append(...items){for(const item of items){this.children.push(item);item.parent=this;}},remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);},addEventListener(t,f){this.handlers[t]=f;},setAttribute(k,v){this[k]=v;}});
   const el=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
   const frame={postMessage(){}};el('widget-preview').contentWindow=frame;
   let stored=JSON.stringify({questions:['旧问题'],questionMeta:[{id:'old-id',created_at:'2020-01-01T00:00:00.000Z'}],mode:'box'});
@@ -66,11 +66,15 @@ test('cloud settings merge other fields and preserve question progress',async()=
   assert.equal(deck.settings.name,'新的名称');assert.equal(deck.settings.frontTop,'别处的改动');assert.equal(deck.current,0);assert.equal(deck.revealed,true);assert.equal(writes,2);
 });
 
-test('preview toggle saves the default immediately and disallows theme or untrusted senders',async()=>{
-  const page=setup();await tick();page.previewEdit('mode','card',true);await tick();assert.equal(page.saved().settings.mode,'card');
-  page.previewEdit('theme','dark',true);page.events.message({origin:'https://widgets.test',source:{},data:{type:'question-preview-edit',key:'name',value:'恶意',commit:true}});page.flush();await tick();assert.equal(page.saved().settings.theme,'auto');assert.equal(page.saved().settings.name,'留一个问题');
+test('removed visual mode and theme controls or untrusted senders cannot change settings',async()=>{
+  const page=setup();await tick();page.previewEdit('mode','box',true);page.previewEdit('theme','dark',true);page.events.message({origin:'https://widgets.test',source:{},data:{type:'question-preview-edit',key:'name',value:'恶意',commit:true}});page.flush();await tick();assert.equal(page.saved().settings,undefined);
 });
 
 test('leaving an untouched inline field cannot overwrite a remote change',async()=>{
   const page=setup();await tick();page.previewEdit('name','未输入的旧内容',true);await tick();assert.equal(page.saved().settings,undefined);
+});
+
+test('batch entry shows existing plain text and appends distinct newline questions immediately',async()=>{
+  const page=setup();await tick();page.fire('open-batch');assert.equal(page.el('batch-existing').children[0].textContent,'旧问题');assert.equal(page.el('batch-dialog').open,true);
+  page.el('batch-input').value='旧问题\n新问题甲\n\n新问题甲\n新问题乙';await page.fire('submit-batch');assert.deepEqual(page.saved().questions,['旧问题','新问题甲','新问题乙']);assert.equal(page.saved().questionMeta[0].created_at,'2020-01-01T00:00:00.000Z');assert.equal(page.el('batch-dialog').open,false);assert.equal(page.el('batch-input').value,'');
 });

@@ -20,3 +20,7 @@ python -m http.server 4173
 默认跟随系统深浅色主题。也可以在地址末尾加入 `?theme=dark` 或 `?theme=light` 固定主题。
 
 天气数据来自 [Open-Meteo](https://open-meteo.com/)，每 10 分钟自动刷新；不需要 API Key。
+
+## 个人域名托管
+
+个人网站 Cloudflare Worker 直接提供 https://www.ducenhan.com/widgets/weather/，可用于 Notion 嵌入，无需跳转到 github.io。网站构建时从本仓库 main 同步资源，天气数据仍来自 Open-Meteo。
