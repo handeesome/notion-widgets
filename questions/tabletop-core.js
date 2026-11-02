@@ -1,28 +1,29 @@
 (() => {
-  const initial = () => ({ play: 'shared', players: 2, turn: 0, cards: [null, null, null] });
-  function act(state, remaining, total, action, slot = 0, value = null, random = Math.random) {
-    const next = JSON.parse(JSON.stringify(state || initial()));
-    let pool = [...remaining];
-    if (action === 'configure') {
-      if (!['shared','individual'].includes(value.play) || ![2,3].includes(value.players)) throw Error('玩法不正确');
-      Object.assign(next, initial(), value);
-    } else if (action === 'turn') next.turn = (next.turn + 1) % next.players;
-    else if (action === 'reset') { next.cards = [null,null,null]; next.turn = 0; }
-    else if (action === 'draw') {
-      if (!Number.isInteger(slot) || slot < 0 || slot >= (next.play === 'shared' ? 1 : next.players)) throw Error('座位不正确');
-      if (next.cards[slot] !== null) next.cards[slot] = null;
-      else {
-        const occupied = next.cards.filter(Number.isInteger);
-        pool = pool.filter(i => !occupied.includes(i));
-        if (!pool.length) pool = Array.from({length:total},(_,i)=>i).filter(i=>!occupied.includes(i));
-        if (!pool.length) throw Error('题目不足，请先收回一张卡片。');
-        const picked = pool[Math.floor(random() * pool.length)];
-        next.cards[slot] = picked; pool = pool.filter(i=>i!==picked);
-      }
-    } else throw Error('操作不正确');
-    return { table: next, remaining: pool };
-  }
-  const api = { initial, act };
-  if (typeof module !== 'undefined') module.exports = api;
-  else window.QuestionTable = api;
+ const initial=()=>({play:'single',card:null,history:[],last:null});
+ function normalize(state,total){
+  const valid=i=>Number.isInteger(i)&&i>=0&&i<total;
+  if(!state)return initial();
+  const legacy=Array.isArray(state.cards)?state.cards.filter(valid):[];
+  const play=['multiple','individual'].includes(state.play)?'multiple':'single';
+  const card=valid(state.card)?state.card:!('card' in state)?legacy[0]??null:null;
+  return {play,card,history:play==='multiple'?[...new Set((Array.isArray(state.history)?state.history:legacy).filter(valid))]:[],last:valid(state.last)?state.last:card};
+ }
+ function act(state,remaining,total,action,slot=0,value=null,random=Math.random){
+  const next=normalize(state,total);let pool=[...new Set(remaining.filter(i=>Number.isInteger(i)&&i>=0&&i<total))];
+  if(action==='configure'){
+   if(!['single','multiple'].includes(value?.play))throw Error('抽牌方式不正确');
+   Object.assign(next,initial(),{play:value.play,last:next.last});
+  }else if(action==='draw'){
+   if(next.card!==null)next.card=null;
+   else{
+    const fresh=!pool.length;if(fresh){pool=Array.from({length:total},(_,i)=>i);next.history=[];}
+    if(!pool.length)throw Error('题库中没有问题。');
+    const choices=fresh&&pool.length>1?pool.filter(i=>i!==next.last):pool;
+    const picked=choices[Math.floor(random()*choices.length)];next.card=picked;next.last=picked;
+    pool=pool.filter(i=>i!==picked);if(next.play==='multiple')next.history.push(picked);
+   }
+  }else throw Error('操作不正确');
+  return {table:next,remaining:pool};
+ }
+ const api={initial,normalize,act};if(typeof module!=='undefined')module.exports=api;else window.QuestionTable=api;
 })();

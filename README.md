@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | [`gallery/`](./gallery/) | 支持多种布局、自动播放和在线配置的图片画廊 | Supabase、Supabase JS CDN | [Gallery Widget](./gallery/README.md) |
 | [`weather/`](./weather/) | 展示厦门与宁波实时天气的双城天气卡片 | Open-Meteo | [Weather Widget](./weather/README.md) |
-| [`questions/`](./questions/) | 支持公共题 / 每人一题的多人对话卡组、自动保存管理页、跨设备同步 | Supabase、Supabase JS CDN；可选本地存储模式 | [对话卡组](./questions/README.md) |
+| [`questions/`](./questions/) | 小巧的单入口抽牌与多张历史卡组、自动保存管理页、跨设备同步 | Supabase、Supabase JS CDN；可选本地存储模式 | [对话卡组](./questions/README.md) |
 
 ## 本地预览
 
@@ -28,7 +28,7 @@ python -m http.server 4174
 
 图库还需要先配置 Supabase，并在 URL 中提供 `gallery_id`；完整步骤见 [`gallery/README.md`](./gallery/README.md)。
 
-问题卡组在 questions 目录运行 python -m http.server 4185 预览。现为两到三人的桌游卡桌，支持「同一张」轮流回答和「各抽一张」独立问题，整卡翻转，卡桌状态跨设备共享。管理页支持便签新增、每题只读查看/编辑，以及「批量添加问题」的普通文字列表和换行追加。详见[卡组文档](./questions/README.md)。
+问题卡组在 questions 目录运行 python -m http.server 4185 预览。界面优先保持小巧，只提供「抽一张」「抽多张」两个选项，始终共用一个抽牌入口。抽多张的本轮历史默认折叠，展开后最多 120px 高并可滚动。没有人数、玩家、下一位或收回卡片按钮；卡片固定 260px 高，长题在内部滚动。抽牌方式、当前卡片和历史跨设备共享。管理页支持便签新增、每题只读查看/编辑，以及「批量添加问题」的普通文字列表和换行追加。详见[卡组文档](./questions/README.md)。
 
 个人网站由另一个仓库 handeesome/handeesome.github.io 的 Cloudflare Worker ducenhan-website 托管。该网站构建前同步本仓库静态资源，直接提供 https://www.ducenhan.com/widgets/questions/、/widgets/gallery/ 和 /widgets/weather/，无需跳回 github.io。更换 Notion 嵌入地址时保留原 id 等查询参数；跨域本地存储不会自动迁移。
 
@@ -44,7 +44,7 @@ python -m http.server 4174
 2. 确认目标组件目录可通过 HTTPS 访问，例如 `https://example.com/weather/`。
 3. 在 Notion 中输入 `/embed`，粘贴对应组件的公开地址。
 
-本仓库的 GitHub Pages 对话卡组个人域名地址为 <https://www.ducenhan.com/widgets/questions/>。跨设备使用时，请在 Notion `/embed` 中粘贴 Supabase 初始化生成的完整专属链接（带 `id`）；不要把真实题库 ID 提交到仓库。
+本仓库的对话卡组个人域名地址为 <https://www.ducenhan.com/widgets/questions/>。跨设备使用时，请在 Notion `/embed` 中粘贴 Supabase 初始化生成的完整专属链接（带 `id`）；不要把真实题库 ID 提交到仓库。
 
 `weather` 不需要 API Key。`gallery` 和 `questions` 的云端功能使用 Supabase，浏览器端配置只应包含 publishable key；不要提交 `service_role` key、数据库密码或其他密钥。对话卡组不带 `id` 时无需数据库。
 
