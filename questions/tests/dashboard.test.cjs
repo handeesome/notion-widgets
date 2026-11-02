@@ -6,7 +6,7 @@ const source=fs.readFileSync('questions/presentation.js','utf8')+'\n'+fs.readFil
 const tick=async()=>{for(let i=0;i<35;i++)await Promise.resolve();};
 function setup({service=null}={}) {
   const nodes=new Map();const timers=new Map();const events={};let timerID=0;
-  const node=()=>({children:[],handlers:{},style:{},scrollHeight:71,value:'',textContent:'',hidden:false,disabled:false,focus(){},showModal(){this.open=true;},close(){this.open=false;},replaceChildren(...items){this.children=[];this.append(...items);},append(...items){for(const item of items){this.children.push(item);item.parent=this;}},remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);},addEventListener(t,f){this.handlers[t]=f;},setAttribute(k,v){this[k]=v;}});
+  const node=()=>({children:[],handlers:{},style:{},scrollHeight:71,value:'',textContent:'',hidden:false,disabled:false,focus(){},showModal(){this.open=true;},close(){this.open=false;this.handlers.close?.();},replaceChildren(...items){this.children=[];this.append(...items);},append(...items){for(const item of items){this.children.push(item);item.parent=this;}},remove(){if(this.parent)this.parent.children=this.parent.children.filter(x=>x!==this);},addEventListener(t,f){this.handlers[t]=f;},setAttribute(k,v){this[k]=v;}});
   const el=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
   const frame={postMessage(){}};el('widget-preview').contentWindow=frame;
   let stored=JSON.stringify({questions:['旧问题'],questionMeta:[{id:'old-id',created_at:'2020-01-01T00:00:00.000Z'}],mode:'box'});
@@ -77,4 +77,16 @@ test('leaving an untouched inline field cannot overwrite a remote change',async(
 test('batch entry shows existing plain text and appends distinct newline questions immediately',async()=>{
   const page=setup();await tick();page.fire('open-batch');assert.equal(page.el('batch-existing').children[0].textContent,'旧问题');assert.equal(page.el('batch-dialog').open,true);
   page.el('batch-input').value='旧问题\n新问题甲\n\n新问题甲\n新问题乙';await page.fire('submit-batch');assert.deepEqual(page.saved().questions,['旧问题','新问题甲','新问题乙']);assert.equal(page.saved().questionMeta[0].created_at,'2020-01-01T00:00:00.000Z');assert.equal(page.el('batch-dialog').open,false);assert.equal(page.el('batch-input').value,'');
+});
+
+test('batch editor keeps bullets, stages changes and saves edits plus bullet-prefixed additions atomically',async()=>{
+  const page=setup();await tick();page.fire('open-batch');const item=page.el('batch-existing').children[0];assert.equal(item.contentEditable,'plaintext-only');item.textContent='改过的问题';item.handlers.input({isComposing:false});assert.deepEqual(page.saved().questions,['旧问题']);
+  page.el('batch-input').value='• 新问题甲\n- 新问题乙\n• 新问题甲';await page.fire('submit-batch');assert.deepEqual(page.saved().questions,['改过的问题','新问题甲','新问题乙']);assert.equal(page.saved().questionMeta[0].created_at,'2020-01-01T00:00:00.000Z');
+});
+
+test('a concurrent edit prevents the entire batch from overwriting or partially appending',async()=>{
+  let writes=0;let deck={revision:0,items:[{id:'one',text:'原问题',created_at:'2020-01-01T00:00:00Z'}]};
+  const service={load:async()=>JSON.parse(JSON.stringify(deck)),subscribe(){return()=>{};},async change(action,version,{questions}){writes++;deck={revision:deck.revision+1,items:questions.map(q=>({...q,id:q.id||'new-id',created_at:'2020-01-01T00:00:00Z'}))};return{status:'ok',deck};}};
+  const page=setup({service});await tick();page.fire('open-batch');const item=page.el('batch-existing').children[0];item.textContent='本机修改';item.handlers.input({isComposing:false});page.el('batch-input').value='• 待加入的问题';deck.items[0].text='别处修改';deck.revision++;
+  await page.fire('submit-batch');assert.equal(writes,0);assert.equal(page.el('batch-dialog').open,true);assert.equal(page.el('batch-retry').hidden,false);assert.equal(item.textContent,'本机修改');await page.fire('batch-retry');assert.deepEqual(deck.items.map(q=>q.text),['本机修改','待加入的问题']);assert.equal(writes,1);
 });

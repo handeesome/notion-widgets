@@ -34,6 +34,9 @@
   const editing = new Set();
   const rows = new Map();
   const queuedUpdates = new Set();
+  let batchBase = [];
+  const batchEdits = new Map();
+  const parseQuestions = (input) => [...new Set(input.split(/\r?\n/).map(q => q.replace(/^\s*(?:[•●◦▪]\s*|[-*]\s+)/, "").trim()).filter(Boolean))];
   function previewSettings() {
     const value = { ...settings };
     for (const [key, draft] of settingDrafts) value[key] = draft.value;
@@ -94,6 +97,8 @@
     $("status").textContent = waiting ? "正在保存…" : notice;
     $("retry").hidden = !failed;
     $("retry").disabled = !!waiting;
+    $("batch-retry").hidden = !failed;
+    $("batch-retry").disabled = !!waiting;
     $("add").disabled = !ready || !!waiting;
     $("open-batch").disabled = !ready;
     $("submit-batch").disabled = !ready || !!waiting;
@@ -199,7 +204,17 @@
   }
   function nextItems(latest, op, force) {
     let next = latest.map((item) => ({ ...item }));
-    if (op.kind === "add") {
+    if (op.kind === "batch") {
+      for (const edit of op.updates) {
+        const item = next.find(q => q.id === edit.id);
+        if (!item) throw new Error("有问题已被移除，你的修改仍保留在窗口中。");
+        if (!force && item.text !== edit.baseText && item.text !== edit.text.trim()) throw new Error("有问题已在别处修改。你的内容已保留，可点重试保存。");
+        item.text = edit.text.trim();
+      }
+      const existing = new Set(next.map(q => q.text));
+      next.push(...op.texts.filter(text => !existing.has(text)).map(text => ({ id: null, text, created_at: null })));
+    }
+    else if (op.kind === "add") {
       const existing = new Set(next.map((item) => item.text));
       next.push(...op.texts.filter((text) => !existing.has(text)).map((text) => ({ id: null, text, created_at: null })));
     }
@@ -255,7 +270,7 @@
       try {
         await persistOperation(op, force);
         if (!failed || (failed.kind === op.kind && failed.id === op.id && failed.key === op.key)) { failed = null; notice = "已保存"; }
-        if (op.kind === "add" && $(op.field || "new-questions").value === op.input) {
+        if (["add", "batch"].includes(op.kind) && $(op.field || "new-questions").value === op.input) {
           $(op.field || "new-questions").value = "";
           if (op.field === "batch-input") $("batch-dialog").close();
           else resizeNewQuestions();
@@ -299,18 +314,35 @@
   }
   $("new-questions").addEventListener("input", resizeNewQuestions);
   $("open-batch").addEventListener("click", () => {
-    $("batch-existing").replaceChildren(...items.map((item) => { const li=document.createElement("li"); li.textContent=item.text; return li; }));
+    batchBase = items.map(item => ({...item})); batchEdits.clear();
+    $("batch-existing").replaceChildren(...batchBase.map((item, index) => {
+      const li = document.createElement("li"); li.textContent = item.text; li.contentEditable = "plaintext-only";
+      li.setAttribute("role", "textbox"); li.setAttribute("aria-label", `修改第 ${index + 1} 条问题`);
+      function edit() {
+        const text = li.textContent.replace(/[\r\n]+/g, " ");
+        if (text !== li.textContent) li.textContent = text;
+        if (text === item.text) batchEdits.delete(item.id); else batchEdits.set(item.id, text);
+        notice = ""; status();
+      }
+      li.addEventListener("input", event => { if (!event.isComposing) edit(); });
+      li.addEventListener("compositionend", edit);
+      li.addEventListener("keydown", event => { if (event.key === "Enter" && !event.isComposing) {event.preventDefault(); li.blur();} });
+      return li;
+    }));
+    document.documentElement.dataset.batchOpen = "true";
     $("batch-dialog").showModal();
   });
+  $("batch-dialog").addEventListener("close", () => {delete document.documentElement.dataset.batchOpen; batchEdits.clear();});
   $("close-batch").addEventListener("click", () => $("batch-dialog").close());
-  $("submit-batch").addEventListener("click", () => {
+  function submitBatch(force = false) {
     if (!ready || waiting) return;
     const input=$("batch-input").value;
-    const existing=new Set(items.map(q=>q.text));
-    const texts=[...new Set(input.split(/\r?\n/).map(q=>q.trim()).filter(Boolean))].filter(q=>!existing.has(q));
-    if (!texts.length) { notice="没有新的问题可添加。"; status(); return; }
-    return enqueue({kind:"add",texts,input,field:"batch-input"});
-  });
+    const texts = parseQuestions(input);
+    const updates = batchBase.filter(item => batchEdits.has(item.id)).map(item => ({id:item.id,baseText:item.text,text:batchEdits.get(item.id)}));
+    if (!texts.length && !updates.length) { notice="没有需要更新的内容。"; status(); return; }
+    return enqueue({kind:"batch",texts,updates,input,field:"batch-input"}, force);
+  }
+  $("submit-batch").addEventListener("click", () => submitBatch());
   window.addEventListener("resize", resizeNewQuestions);
   resizeNewQuestions();
   $("add").addEventListener("click", () => {
@@ -321,14 +353,17 @@
     if (new Set(texts).size !== texts.length || texts.some((text) => items.some((item) => item.text === text))) { notice = "有重复的问题。"; status(); return; }
     return enqueue({ kind: "add", texts, input });
   });
-  $("retry").addEventListener("click", () => {
+  function retryFailed() {
     if (!failed || waiting) return;
     const op = failed;
     if (op.kind === "load") { failed = null; return refresh(); }
     if (op.kind === "update") return saveDraft(op.id, true);
     if (op.kind === "settings") return saveSetting(op.key, true);
+    if (op.kind === "batch" && $("batch-dialog").open) return submitBatch(true);
     return enqueue(op, true);
-  });
+  }
+  $("retry").addEventListener("click", retryFailed);
+  $("batch-retry").addEventListener("click", retryFailed);
   if (cloudMode) {
     $("connection").textContent = "云端题库";
     try { if (localData().saved?.questions?.length) $("import-local").hidden = false; } catch { /* No local storage is required for cloud use. */ }
@@ -344,6 +379,6 @@
     const poll = setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
     window.addEventListener("beforeunload", () => { unsubscribe?.(); clearInterval(poll); });
   } else window.addEventListener("storage", (event) => { if (event.key === KEY) void refresh(); });
-  window.addEventListener("beforeunload", (event) => { if (drafts.size || settingDrafts.size || waiting) { event.preventDefault(); event.returnValue = ""; } });
+  window.addEventListener("beforeunload", (event) => { if (drafts.size || settingDrafts.size || batchEdits.size || waiting) { event.preventDefault(); event.returnValue = ""; } });
   void refresh();
 })();

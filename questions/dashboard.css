@@ -42,11 +42,14 @@
 .add-panel textarea:focus { outline:none; box-shadow:none; }
 .add-actions { display:flex; align-items:center; justify-content:flex-end; gap:14px; margin-top:auto; }
 .add-actions .primary { min-height:34px; padding:7px 12px; }
-.batch-dialog { width:min(560px,calc(100% - 32px)); max-height:85vh; padding:26px; border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); }
-.batch-dialog::backdrop { background:#0005; }
+.batch-dialog { width:min(560px,calc(100% - 32px)); max-height:85vh; overflow:auto; overscroll-behavior:contain; padding:26px; border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); }
+.batch-dialog::backdrop { background:var(--bg,#fff); }
+html[data-batch-open],html[data-batch-open] body { overflow:hidden; overscroll-behavior:none; }
 .batch-heading { display:flex; align-items:center; justify-content:space-between; }.batch-heading h2 { font-size:21px; font-family:SimSun,serif; font-weight:400; margin:0; }.batch-heading button { background:transparent; border:0; font-size:24px; color:var(--muted); }
 .batch-dialog h3,.batch-dialog label { font-size:12px; font-weight:400; color:var(--muted); display:block; margin:22px 0 10px; }
 .batch-existing { max-height:180px; overflow:auto; padding-left:24px; font-family:SimSun,serif; font-size:16px; line-height:1.9; }.batch-existing li { margin-bottom:8px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.batch-existing li[contenteditable] { cursor:text; outline:none; border-radius:3px; min-height:1.8em; }
+.batch-existing li[contenteditable]:hover,.batch-existing li[contenteditable]:focus { background:var(--soft); }
 .batch-dialog textarea { width:100%; padding:12px; resize:vertical; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); font-size:15px; line-height:1.8; }
 #batch-status { color:var(--muted); font-size:12px; line-height:1.8; }
 @media(max-width:760px) { .workspace { grid-template-columns:1fr; gap:20px; } .preview-panel { max-width:580px; width:100%; margin:auto; } .add-panel { margin:0 4px; } }

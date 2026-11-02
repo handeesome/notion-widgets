@@ -28,7 +28,7 @@ python -m http.server 4174
 
 图库还需要先配置 Supabase，并在 URL 中提供 `gallery_id`；完整步骤见 [`gallery/README.md`](./gallery/README.md)。
 
-问题卡组在 questions 目录运行 python -m http.server 4185 预览。界面优先保持小巧，只提供「抽一张」「抽多张」两个选项，始终共用一个抽牌入口。抽多张的本轮历史默认折叠，展开后最多 120px 高并可滚动。没有人数、玩家、下一位或收回卡片按钮；卡片固定 260px 高，长题在内部滚动。抽牌方式、当前卡片和历史跨设备共享。管理页支持便签新增、每题只读查看/编辑，以及「批量添加问题」的普通文字列表和换行追加。详见[卡组文档](./questions/README.md)。
+问题卡组在 questions 目录运行 python -m http.server 4185 预览。界面优先保持小巧，只提供「抽一张」「抽多张」两个选项，始终共用一个抽牌入口。抽多张的本轮历史默认折叠，展开后最多 120px 高并可滚动。没有人数、玩家、下一位或收回卡片按钮；卡片固定 260px 高，长题在内部滚动。抽牌方式、当前卡片和历史跨设备共享。管理页支持便签新增、每题只读查看/编辑，以及醒目的「批量添加问题」入口、可编辑项目符号列表和换行追加，点击「更新题库」统一保存；弹窗使用不透明遮罩并锁定底层滚动。详见[卡组文档](./questions/README.md)。
 
 个人网站由另一个仓库 handeesome/handeesome.github.io 的 Cloudflare Worker ducenhan-website 托管。该网站构建前同步本仓库静态资源，直接提供 https://www.ducenhan.com/widgets/questions/、/widgets/gallery/ 和 /widgets/weather/，无需跳回 github.io。更换 Notion 嵌入地址时保留原 id 等查询参数；跨域本地存储不会自动迁移。
 
