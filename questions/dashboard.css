@@ -74,4 +74,4 @@ html[data-batch-open],html[data-batch-open] body { overflow:hidden; overscroll-b
 .dashboard select { color-scheme:inherit; }
 .dashboard select option { background:var(--paper); color:var(--ink); }
 .dashboard select option:checked { background:var(--soft); color:var(--ink); }
-.dashboard select:focus-visible { outline:1px solid var(--accent); outline-offset:2px; }
+.dashboard select,.dashboard select:focus,.dashboard select:focus-visible { outline:none; box-shadow:none; }
