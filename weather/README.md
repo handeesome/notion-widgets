@@ -27,4 +27,4 @@ python -m http.server 4173
 
 ## 独立部署准备
 
-仓库根目录已提供独立 Cloudflare Worker 配置与资源打包命令，路径仍为 /widgets/weather/。目前待 Cloudflare 登录和 Git 连接后切换路由，线上仍由个人网站的旧部署提供。详见 [独立部署与回退](../docs/independent-deployment.md)。
+仓库根目录已提供独立 Cloudflare Worker 配置与资源打包命令，路径仍为 /widgets/weather/。独立 Worker 和现有域名的 /widgets/* 路由已上线，原链接与数据不变；Cloudflare Git 已连接 main，后续 push 到组件仓库即可触发独立构建部署。详见 [独立部署与回退](../docs/independent-deployment.md)。

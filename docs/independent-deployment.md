@@ -1,6 +1,6 @@
 # 独立部署到 Cloudflare Workers
 
-配置已准备，线上切换前仍由个人网站提供组件。先验证新 Worker，再解除个人网站的构建同步。
+独立 Worker 与两条 /widgets/* 路由已部署，已验证问题页、管理页、图库、天气页的独立部署响应头及个人网站首页。Cloudflare Git 已连接本仓库 main；push 后会独立构建和部署，原 Notion 链接不变。手动 npm run build 与 npm run deploy 也可用。以下记录生产配置与验证步骤。
 
 ## Git 部署配置
 

@@ -39,7 +39,7 @@
 
 在 Notion 中用 /embed 粘贴完整带 id 地址。替换旧链接时，仅将 https://handeesome.github.io/notion-widgets/questions/ 改为 https://www.ducenhan.com/widgets/questions/，保留 id。旧 GitHub Pages 地址仍兼容。
 
-个人网站仓库 handeesome/handeesome.github.io 的 scripts/sync-notion-widgets.mjs 在每次构建前从本仓库 main 同步静态资源。组件更新推送后，再触发个人网站构建即可同步。不会把 SQL 或测试文件发布到个人网站。
+独立 Worker notion-widgets 从本仓库根目录构建 dist/widgets 静态资源并接管 /widgets/*。Cloudflare Git 已连接，本仓库 main 的推送可独立构建并更新；也可手动运行 npm run build 与 npm run deploy。个人网站中的静态快照只作回退，组件更新无需构建个人网站。SQL、测试和文档不进入发布包。
 
 域名直接托管避免了页面向 github.io 跳转，但题库仍依赖 Supabase 和 jsDelivr，天气还依赖 Open-Meteo；各地网络的实际可用性需在手机上验证。
 
@@ -57,4 +57,4 @@ node --test questions/tests/tabletop.test.cjs 检查卡桌规则；dashboard.tes
 
 ## 独立部署准备
 
-仓库根目录已提供独立 Cloudflare Worker 配置与资源打包命令，路径仍为 /widgets/questions/。目前待 Cloudflare 登录和 Git 连接后切换路由，线上仍由个人网站的旧部署提供。详见 [独立部署与回退](../docs/independent-deployment.md)。
+仓库根目录已提供独立 Cloudflare Worker 配置与资源打包命令，路径仍为 /widgets/questions/。独立 Worker 和现有域名的 /widgets/* 路由已上线，原链接与数据不变；Cloudflare Git 已连接 main，后续 push 到组件仓库即可触发独立构建部署。详见 [独立部署与回退](../docs/independent-deployment.md)。
