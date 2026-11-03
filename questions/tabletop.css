@@ -32,8 +32,8 @@
 @media(max-width:380px) { .table-widget { padding:16px 14px 12px; }.table-header { gap:8px; }.play-toggle { width:124px; }.table-face { padding:16px 18px; } }
 @media(prefers-reduced-motion:reduce) { .table-card,.play-slider { transition:none; } }
 
-.topic-choices { display:flex; flex-wrap:wrap; justify-content:center; gap:5px 8px; margin:12px 0 2px; }
-.topic-choices button { border:1px solid transparent; border-radius:16px; padding:5px 10px; color:var(--muted); background:transparent; font-family:inherit; font-size:11px; cursor:pointer; overflow-wrap:anywhere; max-width:100%; }
+.topic-choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px 8px; margin:12px 0 2px; }
+.topic-choices button { border:1px solid transparent; border-radius:16px; padding:5px 10px; color:var(--muted); background:transparent; font-family:inherit; font-size:11px; cursor:pointer; min-width:0; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.5; }
 .topic-choices button:hover { background:var(--soft); }
 .topic-choices button[aria-pressed="true"] { background:var(--soft); border-color:var(--line); color:var(--ink); }
 .topic-choices button:disabled { cursor:default; }

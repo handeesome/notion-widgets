@@ -112,3 +112,10 @@ test('the add-panel menu creates a draft theme and saves it with the next questi
 test('a seventh custom theme is rejected without losing the new question',async()=>{
  const page=setup();await tick();for(let i=0;i<6;i++){page.el('new-topic').value='主题'+i;page.el('new-questions').value='问题'+i;await page.fire('add');}page.el('new-topic').value='第七个';page.el('new-questions').value='不能丢失的问题';await page.fire('add');assert.equal(page.saved().questions.length,7);assert.equal(page.el('new-questions').value,'不能丢失的问题');assert.match(page.el('status').textContent,/6 个主题/);
 });
+
+test('each question menu lists every existing theme and can create a theme for that question',async()=>{
+ const page=setup();await tick();for(const name of ['爱情','成长']){page.el('new-topic').value=name;page.el('new-questions').value=name+'问题';await page.fire('add');}
+ const menu=page.rows()[1].children.at(-1);assert.deepEqual(new Set(menu.children.map(o=>o.value)),new Set(['','成长','爱情','__new__']));
+ menu.value='成长';menu.handlers.change();await tick();assert.equal(page.saved().questionMeta[1].topic,'成长');
+ menu.value='__new__';menu.handlers.change();assert.equal(page.el('topic-dialog').open,true);page.el('topic-name').value='日常';page.fire('create-topic');await tick();assert.equal(page.saved().questionMeta[1].topic,'日常');assert.equal(page.el('new-topic').value,'');
+});

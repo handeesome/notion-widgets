@@ -34,7 +34,7 @@
   const editing = new Set();
   const rows = new Map();
   const queuedUpdates = new Set();
-  let topicFilter = "", addTopic = "";
+  let topicFilter = "", addTopic = "", topicTarget = null;
   let batchBase = [];
   let batchRows = [];
   const batchEdits = new Map();
@@ -166,7 +166,6 @@
   }
   function renderRows() {
     const themes = [...new Set(items.map(q=>q.topic||"未分类"))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
-    $("topic-options").replaceChildren(...themes.filter(t=>t!=="未分类").map(t=>{const o=document.createElement("option");o.value=t;return o;}));
     const customThemes=themes.filter(t=>t!=="未分类");
     const addChoices=["",...new Set([...customThemes,...(addTopic?[addTopic]:[])])];
     if(customThemes.length<6)addChoices.push("__new__");
@@ -189,8 +188,10 @@
         const input = document.createElement("textarea"); input.className = "row-input"; input.maxLength = 500; input.rows = 2;
         const time = document.createElement("time"); time.className = "row-time";
         controls.append(toggle, edit, remove); heading.append(number, controls); element.append(heading, mask, input, time);
-        const topic = document.createElement("input");topic.className="topic-input row-topic";topic.maxLength=30;topic.setAttribute("list","topic-options");topic.placeholder="未分类";topic.setAttribute("aria-label","问题主题");element.append(topic);
-        topic.addEventListener("change",()=>{const latest=items.find(q=>q.id===item.id);void enqueue({kind:"topic",id:item.id,topic:topic.value.trim(),baseTopic:latest?.topic||""});});
+        const topic = document.createElement("select");topic.className="topic-input row-topic";topic.setAttribute("aria-label","问题主题");element.append(topic);
+        topic.addEventListener("change",()=>{const latest=items.find(q=>q.id===item.id);
+          if(topic.value==="__new__"){topic.value=latest?.topic||"";openTopicDialog({id:item.id,baseTopic:latest?.topic||""});return;}
+          void enqueue({kind:"topic",id:item.id,topic:topic.value,baseTopic:latest?.topic||""});});
         row = { element, topic, number, toggle, edit, remove, mask, input, time };
         rows.set(item.id, row); $("question-rows").append(element);
         toggle.addEventListener("click", () => {
@@ -225,6 +226,9 @@
         });
       }
       row.element.hidden=!!topicFilter&&(item.topic||"未分类")!==topicFilter;
+      const choices=["",...customThemes,...(customThemes.length<6?["__new__"]:[])];
+      const topicSignature=JSON.stringify(choices);
+      if(row.topicSignature!==topicSignature){row.topic.replaceChildren(...choices.map(t=>{const o=document.createElement("option");o.value=t;o.textContent=t==="__new__"?"＋ 新建主题":t||"未分类";return o;}));row.topicSignature=topicSignature;}
       row.topic.disabled=!ready||!!waiting;
       if(document.activeElement!==row.topic)row.topic.value=item.topic||"";
       const text = drafts.get(item.id)?.text ?? item.text;
@@ -387,18 +391,23 @@
       return ok;
     });
   }
+  function openTopicDialog(target=null) {
+    topicTarget=target;$("topic-name").value="";$("topic-error").textContent="";document.documentElement.dataset.batchOpen="true";$("topic-dialog").showModal();$("topic-name").focus();
+  }
   $("new-topic").addEventListener("change",()=>{
     if($("new-topic").value!=="__new__"){addTopic=$("new-topic").value;return;}
-    $("new-topic").value=addTopic;$("topic-name").value="";$("topic-error").textContent="";document.documentElement.dataset.batchOpen="true";$("topic-dialog").showModal();$("topic-name").focus();
+    $("new-topic").value=addTopic;openTopicDialog();
   });
-  $("topic-dialog").addEventListener("close",()=>{delete document.documentElement.dataset.batchOpen;});
+  $("topic-dialog").addEventListener("close",()=>{topicTarget=null;delete document.documentElement.dataset.batchOpen;});
   $("cancel-topic").addEventListener("click",()=>$("topic-dialog").close());
   $("create-topic").addEventListener("click",()=>{
     const topic=$("topic-name").value.trim();
     if(!topic||topic.length>30){$("topic-error").textContent="请填写 1–30 字的主题。";return;}
     const themes=new Set(items.map(q=>q.topic||"").filter(t=>t&&t!=="未分类"));
     if(topic!=="未分类"&&!themes.has(topic)&&themes.size>=6){$("topic-error").textContent="最多保留 6 个主题。";return;}
-    addTopic=topic==="未分类"?"":topic;renderRows();$("topic-dialog").close();
+    const value=topic==="未分类"?"":topic;
+    if(topicTarget){const target=topicTarget;$("topic-dialog").close();void enqueue({kind:"topic",...target,topic:value});}
+    else{addTopic=value;renderRows();$("topic-dialog").close();}
   });
   $("topic-name").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.isComposing){event.preventDefault();$("create-topic").click();}});
   $("dashboard-topic").addEventListener("change",()=>{topicFilter=$("dashboard-topic").value;renderRows();});

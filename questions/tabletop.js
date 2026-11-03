@@ -23,7 +23,7 @@
   const themeValues=['',...new Set(topics.map(t=>t||'未分类'))];
   const signatureTopics=JSON.stringify(themeValues.map(t=>[t,t?topics.filter(x=>(x||'未分类')===t).length:questions.length]));
   if($('topic-filter').dataset.signature!==signatureTopics){
-   $('topic-filter').replaceChildren(...themeValues.map(t=>{const button=document.createElement('button');button.type='button';button.dataset.topic=t;button.textContent=(t||'全部')+'（'+(t?topics.filter(x=>(x||'未分类')===t).length:questions.length)+'）';button.addEventListener('click',()=>{if(t===table.topic)return;$('draw-history').open=false;void act('topic',0,{topic:t});});return button;}));$('topic-filter').dataset.signature=signatureTopics;
+   $('topic-filter').replaceChildren(...themeValues.map(t=>{const button=document.createElement('button');button.type='button';button.dataset.topic=t;button.textContent=(t||'全部')+'（'+(t?topics.filter(x=>(x||'未分类')===t).length:questions.length)+'）';button.title=button.textContent;button.addEventListener('click',()=>{if(t===table.topic)return;$('draw-history').open=false;void act('topic',0,{topic:t});});return button;}));$('topic-filter').dataset.signature=signatureTopics;
   }
   $('topic-filter').querySelectorAll('button').forEach(button=>{button.disabled=busy||!ready;button.setAttribute('aria-pressed',String(button.dataset.topic===table.topic));});
   copy($('widget-name'),'name');$('play-toggle').setAttribute('aria-checked',String(table.play==='multiple'));
