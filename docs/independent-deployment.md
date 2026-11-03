@@ -16,6 +16,8 @@
 
 没有应用依赖；部署命令固定使用 Wrangler 4.112.0。Cloudflare 的 Git 集成负责推送后构建，无须把 API Token 写进代码。
 
+生产配置显式关闭 workers.dev 与预览 URL，只通过原有个人域名的组件路径提供服务，避免不同发布方式改变入口设置。
+
 `scripts/build-widgets.mjs` 从 Git 已跟踪文件生成 `dist/widgets/{questions,gallery,weather}/`，只打包浏览器资源，排除测试、SQL、文档和忽略文件。`dist` 不提交。可运行 `npm run build`、`npm run deploy:check` 检查打包与 Wrangler 配置。
 
 ## 切换及验证
