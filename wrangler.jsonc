@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "notion-widgets",
+  "compatibility_date": "2026-11-03",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "routes": [
+    { "pattern": "www.ducenhan.com/widgets/*", "zone_name": "ducenhan.com" },
+    { "pattern": "ducenhan.com/widgets/*", "zone_name": "ducenhan.com" }
+  ]
+}

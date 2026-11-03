@@ -24,3 +24,7 @@ python -m http.server 4173
 ## 个人域名托管
 
 个人网站 Cloudflare Worker 直接提供 https://www.ducenhan.com/widgets/weather/，可用于 Notion 嵌入，无需跳转到 github.io。网站构建时从本仓库 main 同步资源，天气数据仍来自 Open-Meteo。
+
+## 独立部署准备
+
+仓库根目录已提供独立 Cloudflare Worker 配置与资源打包命令，路径仍为 /widgets/weather/。目前待 Cloudflare 登录和 Git 连接后切换路由，线上仍由个人网站的旧部署提供。详见 [独立部署与回退](../docs/independent-deployment.md)。

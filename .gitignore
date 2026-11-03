@@ -2,3 +2,6 @@ gallery/demo.html
 gallery/assets/img_0764.jpg
 gallery/assets/img_0765.jpg
 gallery/assets/image_03.jpg
+dist/
+.wrangler/
+node_modules/

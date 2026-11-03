@@ -65,3 +65,7 @@ http://localhost:4174/configure.html?id=你的-gallery-id
 ## 个人域名托管
 
 同一组件也由个人网站 Cloudflare Worker 直接托管于 https://www.ducenhan.com/widgets/gallery/，配置页为该路径下 configure.html。替换原 GitHub Pages 链接时保留完整 id 等查询参数；更换域名的本地存储不自动迁移。网站每次构建从本仓库 main 同步资源。
+
+## 独立部署准备
+
+仓库根目录已提供独立 Cloudflare Worker 配置与资源打包命令，路径仍为 /widgets/gallery/。目前待 Cloudflare 登录和 Git 连接后切换路由，线上仍由个人网站的旧部署提供。详见 [独立部署与回退](../docs/independent-deployment.md)。

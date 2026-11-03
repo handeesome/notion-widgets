@@ -54,3 +54,7 @@
 在仓库根目录运行 python -m http.server 4185，打开 http://localhost:4185/questions/。
 
 node --test questions/tests/tabletop.test.cjs 检查卡桌规则；dashboard.test.cjs 和 cloud.test.cjs 检查自动保存、并发与 RPC。Windows 可用 Get-Content -Raw questions/tests/dashboard.test.cjs | node。云端卡桌升级另以合成题库在事务中验证单入口抽牌历史、回牌、过期版本和错误访问凭据后回滚，不修改真实题库。
+
+## 独立部署准备
+
+仓库根目录已提供独立 Cloudflare Worker 配置与资源打包命令，路径仍为 /widgets/questions/。目前待 Cloudflare 登录和 Git 连接后切换路由，线上仍由个人网站的旧部署提供。详见 [独立部署与回退](../docs/independent-deployment.md)。

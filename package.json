@@ -1,0 +1,10 @@
+{
+  "name": "notion-widgets",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build-widgets.mjs",
+    "deploy": "npx --yes wrangler@4.112.0 deploy",
+    "deploy:check": "npx --yes wrangler@4.112.0 deploy --dry-run"
+  }
+}

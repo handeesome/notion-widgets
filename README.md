@@ -30,7 +30,9 @@ python -m http.server 4174
 
 问题卡组在 questions 目录运行 python -m http.server 4185 预览。界面优先保持小巧，只提供「抽一张」「抽多张」两个选项，始终共用一个抽牌入口。抽多张的本轮历史默认折叠，展开后最多 120px 高并可滚动。没有人数、玩家、下一位或收回卡片按钮；卡片固定 260px 高，长题在内部滚动。抽牌方式、当前卡片和历史跨设备共享。管理页支持便签新增、每题只读查看/编辑，以及醒目的「批量添加问题」入口，已有题目与新增入口合在一份可编辑 bullet 列表中。打开后自动滚到末尾，可继续输入、Enter 续行或粘贴多行，点击「更新题库」统一保存；弹窗使用 85% 黑色遮罩并锁定底层滚动。详见[卡组文档](./questions/README.md)。
 
-个人网站由另一个仓库 handeesome/handeesome.github.io 的 Cloudflare Worker ducenhan-website 托管。该网站构建前同步本仓库静态资源，直接提供 https://www.ducenhan.com/widgets/questions/、/widgets/gallery/ 和 /widgets/weather/，无需跳回 github.io。更换 Notion 嵌入地址时保留原 id 等查询参数；跨域本地存储不会自动迁移。
+独立部署配置已准备：本仓库的 `wrangler.jsonc` 与 `npm run build` 可把三个组件发布为独立 Worker `notion-widgets`，接管现有 `/widgets/*` 路径。当前仍待 Cloudflare 重新登录并连接 Git 自动部署，尚未切换线上路由；步骤见 [独立部署说明](./docs/independent-deployment.md)。
+
+切换前，个人网站由另一个仓库 handeesome/handeesome.github.io 的 Cloudflare Worker ducenhan-website 托管。该网站构建前同步本仓库静态资源，直接提供 https://www.ducenhan.com/widgets/questions/、/widgets/gallery/ 和 /widgets/weather/，无需跳回 github.io。更换 Notion 嵌入地址时保留原 id 等查询参数；跨域本地存储不会自动迁移。
 
 问题支持单个主题：新增时选择或新建主题，问题墙逐题调整并按主题筛选，主页卡组下方按每排 3 个的等宽网格排列主题选项和题数，抽多张旁不重复显示主题。添加便签右上角与问题墙的每张卡片都用完整下拉菜单选择或新建主题，原生菜单适配深色背景，下拉框聚焦时不显示高亮外框或阴影，自定义主题最多 6 个（不含全部与未分类）。批量添加保持纯问题列表，新题先归为未分类。
 
@@ -57,6 +59,10 @@ Notion_Widgets/
 ├── gallery/           # 图片画廊与配置页
 ├── weather/           # 双城天气组件
 ├── questions/         # 对话卡组、独立 Dashboard 与云端初始化脚本
+├── scripts/          # 独立部署资源打包
+├── docs/             # 部署切换与回退说明
+├── wrangler.jsonc    # 独立 Worker 和路径路由
+├── package.json      # Node 22+ 的构建与部署命令
 ├── AGENTS.md          # 项目维护约定
 └── README.md          # 项目总览
 ```
