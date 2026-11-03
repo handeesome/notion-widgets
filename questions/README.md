@@ -32,14 +32,14 @@
 
 ## 部署与个人域名
 
-个人网站的 Cloudflare Worker 从自己的 public/widgets 目录直接提供组件：
+独立 Cloudflare Worker notion-widgets 通过个人域名的路径路由提供组件：
 
 - https://www.ducenhan.com/widgets/questions/
 - https://www.ducenhan.com/widgets/questions/dashboard.html
 
 在 Notion 中用 /embed 粘贴完整带 id 地址。替换旧链接时，仅将 https://handeesome.github.io/notion-widgets/questions/ 改为 https://www.ducenhan.com/widgets/questions/，保留 id。旧 GitHub Pages 地址仍兼容。
 
-独立 Worker notion-widgets 从本仓库根目录构建 dist/widgets 静态资源并接管 /widgets/*。Cloudflare Git 已连接，本仓库 main 的推送可独立构建并更新；也可手动运行 npm run build 与 npm run deploy。个人网站中的静态快照只作回退，组件更新无需构建个人网站。SQL、测试和文档不进入发布包。
+独立 Worker notion-widgets 从本仓库根目录构建 dist/widgets 静态资源并接管 /widgets/*。Cloudflare Git 已连接，本仓库 main 的推送可独立构建并更新；也可手动运行 npm run build 与 npm run deploy。个人网站已移除旧组件副本和同步工具，组件更新无需构建个人网站。SQL、测试和文档不进入发布包。
 
 域名直接托管避免了页面向 github.io 跳转，但题库仍依赖 Supabase 和 jsDelivr，天气还依赖 Open-Meteo；各地网络的实际可用性需在手机上验证。
 

@@ -23,7 +23,7 @@ python -m http.server 4173
 
 ## 个人域名托管
 
-个人网站 Cloudflare Worker 直接提供 https://www.ducenhan.com/widgets/weather/，可用于 Notion 嵌入，无需跳转到 github.io。网站构建时从本仓库 main 同步资源，天气数据仍来自 Open-Meteo。
+独立 Cloudflare Worker notion-widgets 直接提供 https://www.ducenhan.com/widgets/weather/，可用于 Notion 嵌入，无需跳转到 github.io。本仓库 main 的推送独立构建发布，个人网站不再保存组件副本或同步资源，天气数据仍来自 Open-Meteo。
 
 ## 独立部署准备
 

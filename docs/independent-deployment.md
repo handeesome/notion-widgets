@@ -22,13 +22,13 @@
 
 ## 切换及验证
 
-1. 确认新 Worker 的 `workers.dev/widgets/questions/`、`/widgets/gallery/`、`/widgets/weather/` 和问题管理页均正确，不能把个人网站 SPA 的 HTTP 200 当成组件成功。
+1. 在本地预览或首次部署临时开启的 workers.dev 地址中确认问题、图库、天气和管理页均正确；生产配置关闭 workers.dev。不能把个人网站 SPA 的 HTTP 200 当成组件成功。
 2. 部署 `wrangler.jsonc` 中两条路径路由：`www.ducenhan.com/widgets/*`、`ducenhan.com/widgets/*`。路由只接管组件路径，个人网站 Custom Domain 保留。
 3. 检查现有带 `id` 链接的数据、抽题和管理功能。URL、域名、题库 ID、Supabase 均保留。
 4. 检查响应头 `X-Widgets-Deployment: independent` 及 `X-Widgets-Commit`，确认请求由新 Worker 提供。检查 `/` 仍是个人网站。
-5. 验证后才从个人网站移除构建前的 `scripts/sync-notion-widgets.mjs` 调用；旧静态快照可保留为回退。此后组件发布只需 push 到本仓库 main，等待 Cloudflare 成功并刷新 Notion。
+5. 个人网站已移除 `public/widgets` 旧副本、`scripts/sync-notion-widgets.mjs` 和相关 npm 命令，不再包含组件源码或同步工具。组件发布只需 push 到本仓库 main，等待 Cloudflare 成功并刷新 Notion。
 
-若切换失败，删除新 Worker 的两条 `/widgets/*` 路由即可恢复个人网站的旧快照；无需修改题库或 Notion 链接。不要删除个人网站的 Custom Domain 或 DNS。
+若组件发布出现问题，优先回滚独立 Worker 的历史部署，保留两条 `/widgets/*` 路由。若确需恢复旧架构，必须先从个人网站仓库的 Git 历史恢复 `public/widgets` 与同步工具，构建并部署验证后，再移除独立 Worker 路由。仅删除路由不会恢复组件，个人网站的 SPA 可能返回首页而非组件。不要删除个人网站的 Custom Domain 或 DNS；题库和 Notion 链接无须修改。
 
 数据库结构修改仍需执行对应 Supabase 升级 SQL；推送网页代码不会自动迁移数据库。
 

@@ -32,7 +32,7 @@ python -m http.server 4174
 
 组件已发布到独立 Cloudflare Worker `notion-widgets`，接管 www.ducenhan.com 与 ducenhan.com 的 `/widgets/*` 路径；个人网站首页仍由 `ducenhan-website` 提供。原 Notion 链接、题库 ID、Supabase 配置不变。Cloudflare Git 已连接本仓库 main，push 后构建并独立部署；也可用 `npm run build` 与 `npm run deploy` 手动发布组件。构建日志中的 Release commit 与线上 X-Widgets-Commit 响应头用于核对实际发布版本；Git 授权断开时需在 Cloudflare Builds 的 Manage 中恢复仓库访问。步骤见 [独立部署说明](./docs/independent-deployment.md)。
 
-个人网站仓库保留的组件静态快照仅作回退；新路由优先提供独立 Worker 的资源，组件发布不再要求构建个人网站。
+个人网站仓库已清理组件旧副本及同步脚本；组件代码、构建和部署由本仓库独立维护。回退时优先恢复独立 Worker 的历史版本，不能直接移除组件路由指望个人网站继续提供旧副本。
 
 问题支持单个主题：新增时选择或新建主题，问题墙逐题调整并按主题筛选，主页卡组下方按每排 3 个的等宽网格排列主题选项和题数，抽多张旁不重复显示主题。添加便签右上角与问题墙的每张卡片都用完整下拉菜单选择或新建主题，原生菜单适配深色背景，下拉框聚焦时不显示高亮外框或阴影，自定义主题最多 6 个（不含全部与未分类）。批量添加保持纯问题列表，新题先归为未分类。
 
