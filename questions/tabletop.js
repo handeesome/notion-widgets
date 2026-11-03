@@ -22,9 +22,10 @@
   table=window.QuestionTable.normalize(table,questions.length);
   const themeValues=['',...new Set(topics.map(t=>t||'未分类'))];
   const signatureTopics=JSON.stringify(themeValues.map(t=>[t,t?topics.filter(x=>(x||'未分类')===t).length:questions.length]));
-  if($('topic-filter').dataset.signature!==signatureTopics){$('topic-filter').replaceChildren(...themeValues.map(t=>{const o=document.createElement('option');o.value=t;o.textContent=(t||'全部')+'（'+(t?topics.filter(x=>(x||'未分类')===t).length:questions.length)+'）';return o;}));$('topic-filter').dataset.signature=signatureTopics;}
-  $('topic-filter').value=table.topic;$('topic-filter').disabled=busy||!ready;
-  $('topic-count').textContent=table.play==='multiple'?(table.topic||'全部')+'（'+(table.topic?topics.filter(t=>(t||'未分类')===table.topic).length:questions.length)+'）':'';
+  if($('topic-filter').dataset.signature!==signatureTopics){
+   $('topic-filter').replaceChildren(...themeValues.map(t=>{const button=document.createElement('button');button.type='button';button.dataset.topic=t;button.textContent=(t||'全部')+'（'+(t?topics.filter(x=>(x||'未分类')===t).length:questions.length)+'）';button.addEventListener('click',()=>{if(t===table.topic)return;$('draw-history').open=false;void act('topic',0,{topic:t});});return button;}));$('topic-filter').dataset.signature=signatureTopics;
+  }
+  $('topic-filter').querySelectorAll('button').forEach(button=>{button.disabled=busy||!ready;button.setAttribute('aria-pressed',String(button.dataset.topic===table.topic));});
   copy($('widget-name'),'name');$('play-toggle').setAttribute('aria-checked',String(table.play==='multiple'));
   const count=1;const root=$('table-cards');
   for(const [i,row]of slots)if(i>=count){row.el.remove();slots.delete(i);}
@@ -55,7 +56,6 @@
    else{const result=window.QuestionTable.act(table,remaining,questions.length,action,slot,value,Math.random,topics);table=result.table;remaining=result.remaining;saveLocal();render(true);status();}
    if(action==='draw'&&!matchMedia('(prefers-reduced-motion: reduce)').matches){clearTimeout(motionTimer);motionTimer=setTimeout(()=>{busy=false;render(true);},600);return;}
   }catch(e){status(e.message);if(cloud&&!e.message.includes('题目不足'))ready=false;}busy=false;render(true);}
- $('topic-filter').addEventListener('change',()=>{$('draw-history').open=false;void act('topic',0,{topic:$('topic-filter').value});});
  $('play-toggle').addEventListener('click',()=>{ $('draw-history').open=false;void act('configure',0,{play:table.play==='single'?'multiple':'single'}); });
  if(preview){document.documentElement.classList.add('table-preview');$('preview-heading').hidden=false;$('manage-questions').hidden=true;remaining=questions.map((_,i)=>i);
   window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==window.parent||e.data?.type!=='question-preview')return;settings=window.QuestionPresentation.normalize(e.data.settings);ready=e.data.ready===true;render(true);});

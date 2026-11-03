@@ -32,9 +32,9 @@ python -m http.server 4174
 
 个人网站由另一个仓库 handeesome/handeesome.github.io 的 Cloudflare Worker ducenhan-website 托管。该网站构建前同步本仓库静态资源，直接提供 https://www.ducenhan.com/widgets/questions/、/widgets/gallery/ 和 /widgets/weather/，无需跳回 github.io。更换 Notion 嵌入地址时保留原 id 等查询参数；跨域本地存储不会自动迁移。
 
-问题支持单个主题：新增时选择或新建主题，问题墙逐题调整并按主题筛选，主页可选全部或某个主题，抽多张旁显示主题总题数。批量添加保持纯问题列表，新题先归为未分类。
+问题支持单个主题：新增时选择或新建主题，问题墙逐题调整并按主题筛选，主页卡组下方平铺主题选项和题数，抽多张旁不重复显示主题。添加便签右上角用下拉菜单选择或新建主题，自定义主题最多 6 个（不含全部与未分类）。批量添加保持纯问题列表，新题先归为未分类。
 
-问题云端升级执行 questions/supabase-tabletop.sql，再执行 questions/supabase-topics.sql，保留原题目、id 和添加时间；新安装先执行 supabase-setup.sql 再执行卡桌升级脚本。
+问题云端升级执行 questions/supabase-tabletop.sql，再执行 questions/supabase-topics.sql；已升级主题功能的安装再执行 questions/supabase-topic-limit.sql，保留原题目、id 和添加时间；新安装先执行 supabase-setup.sql 再执行卡桌升级脚本。
 
 图库配置页支持鼠标和触摸拖拽排序：卡片浮起跟随移动，相邻卡片实时平滑让位，松手后自动保存。长列表支持边缘自动滚动，按 Esc 可取消拖拽，也可聚焦卡片后用 Alt + ↑ / ↓ 调整顺序。
 

@@ -105,3 +105,10 @@ test('themes persist on additions and individual changes, while batch additions 
  page.el('dashboard-topic').value='爱情';page.fire('dashboard-topic','change');assert.equal(page.rows()[0].hidden,true);assert.equal(page.rows()[1].hidden,false);
  page.fire('open-batch');const tail=page.el('batch-existing').children.at(-1);tail.textContent='批量新增';tail.handlers.input({isComposing:false});await page.fire('submit-batch');assert.deepEqual(page.saved().questionMeta.map(q=>q.topic),['友情','爱情','']);
 });
+
+test('the add-panel menu creates a draft theme and saves it with the next question',async()=>{
+ const page=setup();await tick();page.el('new-topic').value='__new__';page.fire('new-topic','change');assert.equal(page.el('topic-dialog').open,true);page.el('topic-name').value='成长';page.fire('create-topic');assert.equal(page.el('topic-dialog').open,false);assert.equal(page.el('new-topic').value,'成长');page.el('new-questions').value='成长问题';await page.fire('add');assert.equal(page.saved().questionMeta[1].topic,'成长');
+});
+test('a seventh custom theme is rejected without losing the new question',async()=>{
+ const page=setup();await tick();for(let i=0;i<6;i++){page.el('new-topic').value='主题'+i;page.el('new-questions').value='问题'+i;await page.fire('add');}page.el('new-topic').value='第七个';page.el('new-questions').value='不能丢失的问题';await page.fire('add');assert.equal(page.saved().questions.length,7);assert.equal(page.el('new-questions').value,'不能丢失的问题');assert.match(page.el('status').textContent,/6 个主题/);
+});

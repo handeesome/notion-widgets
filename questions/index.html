@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>留一个问题 · 对话卡组</title>
-<link rel="stylesheet" href="./styles.css?v=10"><link rel="stylesheet" href="./tabletop.css?v=15">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="./supabase-config.js?v=4" defer></script><script src="./questions.js?v=4" defer></script><script src="./presentation.js?v=10" defer></script><script src="./cloud.js?v=15" defer></script><script src="./tabletop-core.js?v=15" defer></script><script src="./tabletop.js?v=15" defer></script></head>
+<link rel="stylesheet" href="./styles.css?v=10"><link rel="stylesheet" href="./tabletop.css?v=16">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="./supabase-config.js?v=4" defer></script><script src="./questions.js?v=4" defer></script><script src="./presentation.js?v=10" defer></script><script src="./cloud.js?v=15" defer></script><script src="./tabletop-core.js?v=15" defer></script><script src="./tabletop.js?v=16" defer></script></head>
 <body><main class="table-widget"><p id="preview-heading" class="preview-heading" hidden>预览可修改</p><header class="table-header"><span class="wordmark"><span class="small-star" aria-hidden="true">✳</span><span id="widget-name">留一个问题</span></span>
-<div class="draw-controls"><button id="play-toggle" type="button" class="play-toggle" aria-label="抽多张" role="switch" aria-checked="false"><span class="play-slider" aria-hidden="true"></span><span>抽一张</span><span>抽多张</span></button><span id="topic-count"></span></div></header>
-<div class="topic-bar"><select id="topic-filter" aria-label="抽题主题"><option value="">全部</option></select></div>
+<div class="draw-controls"><button id="play-toggle" type="button" class="play-toggle" aria-label="抽多张" role="switch" aria-checked="false"><span class="play-slider" aria-hidden="true"></span><span>抽一张</span><span>抽多张</span></button></div></header>
 <section id="table-cards" class="table-cards shared" aria-label="问题卡片"></section>
+<div id="topic-filter" class="topic-choices" role="group" aria-label="抽题主题"></div>
 <details id="draw-history" class="draw-history" hidden><summary>已抽问题 <span id="history-count"></span></summary><ol id="history-list"></ol></details>
 <footer class="table-footer"><a id="manage-questions" class="table-manage" href="./dashboard.html" target="_blank" rel="noopener noreferrer" aria-label="添加问题" title="添加问题"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 3v18M11 12h5m-2.5-2.5v5"/></svg></a></footer><p id="sync-status" role="status" class="sync-status" hidden></p><noscript>请启用 JavaScript 后使用卡组。</noscript></main></body></html>

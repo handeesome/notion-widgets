@@ -34,7 +34,7 @@
   const editing = new Set();
   const rows = new Map();
   const queuedUpdates = new Set();
-  let topicFilter = "";
+  let topicFilter = "", addTopic = "";
   let batchBase = [];
   let batchRows = [];
   const batchEdits = new Map();
@@ -167,6 +167,10 @@
   function renderRows() {
     const themes = [...new Set(items.map(q=>q.topic||"未分类"))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
     $("topic-options").replaceChildren(...themes.filter(t=>t!=="未分类").map(t=>{const o=document.createElement("option");o.value=t;return o;}));
+    const customThemes=themes.filter(t=>t!=="未分类");
+    const addChoices=["",...new Set([...customThemes,...(addTopic?[addTopic]:[])])];
+    if(customThemes.length<6)addChoices.push("__new__");
+    $("new-topic").replaceChildren(...addChoices.map(t=>{const o=document.createElement("option");o.value=t;o.textContent=t==="__new__"?"＋ 新建主题":t||"未分类";return o;}));$("new-topic").value=addTopic;
     if(topicFilter&&!themes.includes(topicFilter))topicFilter="";
     $("dashboard-topic").replaceChildren(...["",...themes].map(t=>{const o=document.createElement("option");o.value=t;o.textContent=(t||"全部主题")+"（"+(t?items.filter(q=>(q.topic||"未分类")===t).length:items.length)+"）";return o;}));$("dashboard-topic").value=topicFilter;
     const ids = new Set(items.map((item) => item.id));
@@ -263,6 +267,10 @@
     } catch (error) { ready = false; notice = error.message; failed = { kind: "load" }; }
     finally { loading = false; status(); renderSettings(); }
   }
+  function checkTopics(next, latest) {
+    const count=list=>new Set(list.map(q=>q.topic||"").filter(t=>t&&t!=="未分类")).size;
+    if(count(next)>Math.max(6,count(latest)))throw new Error("最多保留 6 个主题，请选择已有主题。");
+  }
   function nextItems(latest, op, force) {
     let next = latest.map((item) => ({ ...item }));
     if (op.kind === "batch") {
@@ -288,12 +296,13 @@
       if(op.kind === "topic") {
         if(!force&&(item.topic||"")!==op.baseTopic&&(item.topic||"")!==op.topic)throw new Error("这条问题的主题已在别处修改，可点重试保存。");
         if(op.topic.length>30)throw new Error("主题最多 30 字。");
-        item.topic=op.topic;return next;
+        item.topic=op.topic;checkTopics(next,latest);return next;
       }
       if (!force && item.text !== op.baseText && !(op.kind === "update" && item.text === op.text)) throw new Error("这条问题已在别处修改。你的内容已保留，可点重试保存。");
       if (op.kind === "update") item.text = op.text.trim();
       else next = next.filter((q) => q.id !== op.id);
     }
+    checkTopics(next,latest);
     if (!next.length || next.length > 500 || next.some((q) => !q.text.trim() || q.text.length > 500)) throw new Error("题库需保留 1–500 个问题，每题 1–500 字。");
     if (new Set(next.map((q) => q.text.trim())).size !== next.length) throw new Error("有重复的问题，请修改后重试。");
     return next;
@@ -378,6 +387,20 @@
       return ok;
     });
   }
+  $("new-topic").addEventListener("change",()=>{
+    if($("new-topic").value!=="__new__"){addTopic=$("new-topic").value;return;}
+    $("new-topic").value=addTopic;$("topic-name").value="";$("topic-error").textContent="";document.documentElement.dataset.batchOpen="true";$("topic-dialog").showModal();$("topic-name").focus();
+  });
+  $("topic-dialog").addEventListener("close",()=>{delete document.documentElement.dataset.batchOpen;});
+  $("cancel-topic").addEventListener("click",()=>$("topic-dialog").close());
+  $("create-topic").addEventListener("click",()=>{
+    const topic=$("topic-name").value.trim();
+    if(!topic||topic.length>30){$("topic-error").textContent="请填写 1–30 字的主题。";return;}
+    const themes=new Set(items.map(q=>q.topic||"").filter(t=>t&&t!=="未分类"));
+    if(topic!=="未分类"&&!themes.has(topic)&&themes.size>=6){$("topic-error").textContent="最多保留 6 个主题。";return;}
+    addTopic=topic==="未分类"?"":topic;renderRows();$("topic-dialog").close();
+  });
+  $("topic-name").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.isComposing){event.preventDefault();$("create-topic").click();}});
   $("dashboard-topic").addEventListener("change",()=>{topicFilter=$("dashboard-topic").value;renderRows();});
   $("new-questions").addEventListener("input", resizeNewQuestions);
   $("open-batch").addEventListener("click", () => {
