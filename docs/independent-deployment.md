@@ -32,4 +32,10 @@
 
 数据库结构修改仍需执行对应 Supabase 升级 SQL；推送网页代码不会自动迁移数据库。
 
+## 自动部署排查
+
+构建日志会输出 `Release commit`，应与线上响应头 `X-Widgets-Commit` 一致。GitHub Pages 的 build/deploy 成功不代表本 Worker 已发布，应检查 `Workers Builds: notion-widgets` 或上述线上版本号。
+
+若 Settings → Builds 提示项目已断开 Git 账号，点击 Git Repository 的 Manage，恢复 GitHub 安装对 notion-widgets 仓库的访问，再确认生产分支为 main。仅显示仓库名和分支并不能证明 Git 授权正常。
+
 Cloudflare 官方说明：[路径路由优先于同域 Custom Domain](https://developers.cloudflare.com/workers/configuration/routing/routes/)、[Git 自动构建与部署](https://developers.cloudflare.com/workers/ci-cd/builds/)。

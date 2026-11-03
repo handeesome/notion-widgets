@@ -30,7 +30,7 @@ python -m http.server 4174
 
 问题卡组在 questions 目录运行 python -m http.server 4185 预览。界面优先保持小巧，只提供「抽一张」「抽多张」两个选项，始终共用一个抽牌入口。抽多张的本轮历史默认折叠，展开后最多 120px 高并可滚动。没有人数、玩家、下一位或收回卡片按钮；卡片固定 260px 高，长题在内部滚动。抽牌方式、当前卡片和历史跨设备共享。管理页支持便签新增、每题只读查看/编辑，以及醒目的「批量添加问题」入口，已有题目与新增入口合在一份可编辑 bullet 列表中。打开后自动滚到末尾，可继续输入、Enter 续行或粘贴多行，点击「更新题库」统一保存；弹窗使用 85% 黑色遮罩并锁定底层滚动。详见[卡组文档](./questions/README.md)。
 
-组件已发布到独立 Cloudflare Worker `notion-widgets`，接管 www.ducenhan.com 与 ducenhan.com 的 `/widgets/*` 路径；个人网站首页仍由 `ducenhan-website` 提供。原 Notion 链接、题库 ID、Supabase 配置不变。Cloudflare Git 已连接本仓库 main，push 后构建并独立部署；也可用 `npm run build` 与 `npm run deploy` 手动发布组件。步骤见 [独立部署说明](./docs/independent-deployment.md)。
+组件已发布到独立 Cloudflare Worker `notion-widgets`，接管 www.ducenhan.com 与 ducenhan.com 的 `/widgets/*` 路径；个人网站首页仍由 `ducenhan-website` 提供。原 Notion 链接、题库 ID、Supabase 配置不变。Cloudflare Git 已连接本仓库 main，push 后构建并独立部署；也可用 `npm run build` 与 `npm run deploy` 手动发布组件。构建日志中的 Release commit 与线上 X-Widgets-Commit 响应头用于核对实际发布版本；Git 授权断开时需在 Cloudflare Builds 的 Manage 中恢复仓库访问。步骤见 [独立部署说明](./docs/independent-deployment.md)。
 
 个人网站仓库保留的组件静态快照仅作回退；新路由优先提供独立 Worker 的资源，组件发布不再要求构建个人网站。
 

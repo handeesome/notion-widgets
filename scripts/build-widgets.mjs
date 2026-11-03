@@ -29,5 +29,6 @@ for (const widget of widgets) {
   if (!existsSync(index) || !readFileSync(index, 'utf8').includes('<html')) throw Error('Missing widget entry: ' + widget);
 }
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+console.log('Release commit: ' + commit);
 writeFileSync(resolve(output, '_headers'), `/widgets/*\n  X-Widgets-Deployment: independent\n  X-Widgets-Commit: ${commit}\n`);
 console.log(`Built ${copied} browser assets. SQL, tests, docs and untracked files are excluded.`);
