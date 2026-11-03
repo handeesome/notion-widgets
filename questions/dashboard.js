@@ -34,6 +34,7 @@
   const editing = new Set();
   const rows = new Map();
   const queuedUpdates = new Set();
+  let topicFilter = "";
   let batchBase = [];
   let batchRows = [];
   const batchEdits = new Map();
@@ -161,9 +162,13 @@
     const saved = JSON.parse(localStorage.getItem(KEY));
     const texts = Array.isArray(saved?.questions) && saved.questions.length ? saved.questions : defaults;
     const meta = Array.isArray(saved?.questionMeta) ? saved.questionMeta : [];
-    return { saved, settings: saved?.settings, items: texts.map((text, i) => ({ id: meta[i]?.id || `legacy-${i}`, text, created_at: meta[i]?.created_at || null })) };
+    return { saved, settings: saved?.settings, items: texts.map((text, i) => ({ id: meta[i]?.id || `legacy-${i}`, text, created_at: meta[i]?.created_at || null, topic: meta[i]?.topic || "" })) };
   }
   function renderRows() {
+    const themes = [...new Set(items.map(q=>q.topic||"未分类"))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
+    $("topic-options").replaceChildren(...themes.filter(t=>t!=="未分类").map(t=>{const o=document.createElement("option");o.value=t;return o;}));
+    if(topicFilter&&!themes.includes(topicFilter))topicFilter="";
+    $("dashboard-topic").replaceChildren(...["",...themes].map(t=>{const o=document.createElement("option");o.value=t;o.textContent=(t||"全部主题")+"（"+(t?items.filter(q=>(q.topic||"未分类")===t).length:items.length)+"）";return o;}));$("dashboard-topic").value=topicFilter;
     const ids = new Set(items.map((item) => item.id));
     for (const [id, row] of rows) if (!ids.has(id)) { row.element.remove(); rows.delete(id); shown.delete(id); editing.delete(id); }
     items.forEach((item, index) => {
@@ -180,7 +185,9 @@
         const input = document.createElement("textarea"); input.className = "row-input"; input.maxLength = 500; input.rows = 2;
         const time = document.createElement("time"); time.className = "row-time";
         controls.append(toggle, edit, remove); heading.append(number, controls); element.append(heading, mask, input, time);
-        row = { element, number, toggle, edit, remove, mask, input, time };
+        const topic = document.createElement("input");topic.className="topic-input row-topic";topic.maxLength=30;topic.setAttribute("list","topic-options");topic.placeholder="未分类";topic.setAttribute("aria-label","问题主题");element.append(topic);
+        topic.addEventListener("change",()=>{const latest=items.find(q=>q.id===item.id);void enqueue({kind:"topic",id:item.id,topic:topic.value.trim(),baseTopic:latest?.topic||""});});
+        row = { element, topic, number, toggle, edit, remove, mask, input, time };
         rows.set(item.id, row); $("question-rows").append(element);
         toggle.addEventListener("click", () => {
           if (shown.has(item.id)) {
@@ -213,6 +220,9 @@
           void enqueue({ kind: "remove", id: item.id, baseText: drafts.get(item.id)?.text.trim() ?? latest?.text });
         });
       }
+      row.element.hidden=!!topicFilter&&(item.topic||"未分类")!==topicFilter;
+      row.topic.disabled=!ready||!!waiting;
+      if(document.activeElement!==row.topic)row.topic.value=item.topic||"";
       const text = drafts.get(item.id)?.text ?? item.text;
       const visible = shown.has(item.id);
       const isEditing = visible && editing.has(item.id);
@@ -263,17 +273,22 @@
         item.text = edit.text.trim();
       }
       const existing = new Set(next.map(q => q.text));
-      next.push(...op.texts.filter(text => !existing.has(text)).map(text => ({ id: null, text, created_at: null })));
+      next.push(...op.texts.filter(text => !existing.has(text)).map(text => ({ id: null, text, created_at: null, topic: op.topic || "" })));
     }
     else if (op.kind === "add") {
       const existing = new Set(next.map((item) => item.text));
-      next.push(...op.texts.filter((text) => !existing.has(text)).map((text) => ({ id: null, text, created_at: null })));
+      next.push(...op.texts.filter((text) => !existing.has(text)).map((text) => ({ id: null, text, created_at: null, topic: op.topic || "" })));
     }
     else {
       const item = next.find((q) => q.id === op.id);
       if (!item) {
         if (op.kind === "remove") return next;
         throw new Error("这条问题已被移除，你的内容仍保留在输入框中。");
+      }
+      if(op.kind === "topic") {
+        if(!force&&(item.topic||"")!==op.baseTopic&&(item.topic||"")!==op.topic)throw new Error("这条问题的主题已在别处修改，可点重试保存。");
+        if(op.topic.length>30)throw new Error("主题最多 30 字。");
+        item.topic=op.topic;return next;
       }
       if (!force && item.text !== op.baseText && !(op.kind === "update" && item.text === op.text)) throw new Error("这条问题已在别处修改。你的内容已保留，可点重试保存。");
       if (op.kind === "update") item.text = op.text.trim();
@@ -297,7 +312,7 @@
         }
         const next = nextItems(deck.items, op, force);
         if (JSON.stringify(next) === JSON.stringify(deck.items)) { accept(deck); return; }
-        const result = await cloud.change("edit", deck.revision, { questions: next.map(({ id, text }) => ({ id, text })) });
+        const result = await cloud.change("edit", deck.revision, { questions: next.map(({ id, text, topic }) => ({ id, text, ...(topic!==undefined?{topic}:{}) })) });
         if (result.status === "ok") { accept(result.deck); return; }
         deck = result.deck;
       }
@@ -312,7 +327,7 @@
     }
     const now = new Date().toISOString();
     const next = nextItems(local.items, op, force).map((item) => item.id ? item : { ...item, id: crypto.randomUUID(), created_at: now });
-    localStorage.setItem(KEY, JSON.stringify({ questions: next.map((q) => q.text), questionMeta: next.map(({ id, created_at }) => ({ id, created_at })), settings: local.settings, source: next.map((q) => q.text), mode: local.saved?.mode || "box", current: null, revealed: false, remaining: next.map((_, i) => i) }));
+    localStorage.setItem(KEY, JSON.stringify({ questions: next.map((q) => q.text), questionMeta: next.map(({ id, created_at, topic }) => ({ id, created_at, topic:topic||"" })), settings: local.settings, source: next.map((q) => q.text), mode: local.saved?.mode || "box", current: null, revealed: false, remaining: next.map((_, i) => i) }));
     accept({ items: next, settings: local.settings });
   }
   function enqueue(op, force = false) {
@@ -363,6 +378,7 @@
       return ok;
     });
   }
+  $("dashboard-topic").addEventListener("change",()=>{topicFilter=$("dashboard-topic").value;renderRows();});
   $("new-questions").addEventListener("input", resizeNewQuestions);
   $("open-batch").addEventListener("click", () => {
     batchBase = items.map(item => ({...item})); batchEdits.clear();
@@ -392,7 +408,7 @@
     const texts = input.split(/\r?\n/).map((q) => q.trim()).filter(Boolean);
     if (!texts.length) { notice = "请填写问题。"; status(); return; }
     if (new Set(texts).size !== texts.length || texts.some((text) => items.some((item) => item.text === text))) { notice = "有重复的问题。"; status(); return; }
-    return enqueue({ kind: "add", texts, input });
+    return enqueue({ kind: "add", texts, input, topic:$("new-topic").value.trim() });
   });
   function retryFailed() {
     if (!failed || waiting) return;

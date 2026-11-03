@@ -5,3 +5,9 @@ test('a round does not repeat and the next round clears bounded history',()=>{le
 test('changing modes returns to the card back and clears history',()=>{const a=act({play:'multiple',card:0,last:0,history:[0]},[1],2,'configure',0,{play:'single'});assert.equal(a.table.card,null);assert.deepEqual(a.table.history,[]);assert.deepEqual(a.remaining,[1]);});
 test('legacy multi-seat state migrates to a compact history',()=>{const a=normalize({play:'individual',players:3,turn:2,cards:[1,2,0]},3);assert.equal(a.play,'multiple');assert.equal(a.card,1);assert.deepEqual(a.history,[1,2,0]);assert.equal('players' in a,false);});
 test('removed actions and invalid modes are rejected',()=>{assert.throws(()=>act(initial(),[0],1,'turn'));assert.throws(()=>act(initial(),[0],1,'configure',0,{play:'individual'}));});
+
+test('topic draws stay within the chosen pool and one-question rounds remain usable',()=>{
+ let a=act({...initial(),play:'multiple'},[0,1,2],3,'topic',0,{topic:'爱情'});
+ for(let n=0;n<3;n++){a=act(a.table,a.remaining,3,'draw',0,null,()=>0,['友情','爱情','友情']);assert.equal(a.table.card,1);assert.deepEqual(a.table.history,[1]);a=act(a.table,a.remaining,3,'draw',0,null,()=>0,['友情','爱情','友情']);}
+ a=act(a.table,a.remaining,3,'topic',0,{topic:''});assert.deepEqual(a.remaining,[0,1,2]);assert.deepEqual(a.table.history,[]);
+});

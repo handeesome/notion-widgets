@@ -62,7 +62,7 @@
     }
     return {
       async tableChange(action, revision, slot = 0, value = null) {
-        const result = await rpc('change_question_table', { p_revision: revision, p_action: action, p_slot: slot, p_play: value?.play ?? null, p_players: value?.players ?? null });
+        const result = await rpc('change_question_table', { p_revision: revision, p_action: action, p_slot: slot, p_play: action === 'topic' ? value?.topic ?? '' : value?.play ?? null, p_players: value?.players ?? null });
         if (!['ok','conflict'].includes(result.status)) throw new Error('无法更新卡桌，请重试。');
         return { status: result.status, deck: validateDeck(result.deck) };
       },

@@ -4,13 +4,14 @@
  const KEY='notion-question-cards-v1';
  const cloud=!preview && params.has('id') ? window.QuestionCloud.create(location.search) : null;
  let settings=window.QuestionPresentation.normalize(), table=window.QuestionTable.initial(), remaining=[], questions=preview?['这里会显示抽到的问题。','这里会显示另一张问题卡。','这里会保留已抽到的问题。']:window.QUESTION_CARDS;
+ let topics=questions.map(()=>'');
  let revision=-1, ready=preview||!cloud, busy=false, poll, unsubscribe, motionTimer;
  const slots=new Map(), fields={frontTop:'封面上方',invitation:'封面标题',frontBottom:'封面下方',backTop:'问题上方',backBottom:'问题下方'};
  if(['light','dark'].includes(params.get('theme'))) document.documentElement.dataset.theme=params.get('theme');
  $('manage-questions').href='./dashboard.html'+(params.has('id')?'?id='+encodeURIComponent(params.get('id')):'');
  function status(text=''){ $('sync-status').textContent=text;$('sync-status').hidden=!text; }
  function saveLocal(){if(preview||cloud)return;try{const old=JSON.parse(localStorage.getItem(KEY))||{};localStorage.setItem(KEY,JSON.stringify({...old,table,tableSource:questions,remaining}));}catch{status('当前浏览器无法保存进度。');}}
- function localLoad(){try{const old=JSON.parse(localStorage.getItem(KEY))||{};settings=window.QuestionPresentation.normalize(old.settings);if(!preview){questions=old.questions?.length?old.questions:window.QUESTION_CARDS;table=JSON.stringify(old.tableSource)===JSON.stringify(questions)&&old.table?old.table:window.QuestionTable.initial();remaining=JSON.stringify(old.tableSource)===JSON.stringify(questions)&&Array.isArray(old.remaining)?old.remaining:questions.map((_,i)=>i);}}catch{remaining=questions.map((_,i)=>i);}}
+ function localLoad(){try{const old=JSON.parse(localStorage.getItem(KEY))||{};settings=window.QuestionPresentation.normalize(old.settings);if(!preview){questions=old.questions?.length?old.questions:window.QUESTION_CARDS;topics=questions.map((_,i)=>old.questionMeta?.[i]?.topic||'');table=JSON.stringify(old.tableSource)===JSON.stringify(questions)&&old.table?old.table:window.QuestionTable.initial();remaining=JSON.stringify(old.tableSource)===JSON.stringify(questions)&&Array.isArray(old.remaining)?old.remaining:questions.map((_,i)=>i);}}catch{remaining=questions.map((_,i)=>i);}}
  function editable(node,key){if(!preview)return;node.classList.add('preview-copy');node.dataset.placeholder=key==='name'?'名称':fields[key];node.setAttribute('role','textbox');node.setAttribute('aria-label','编辑'+node.dataset.placeholder);node.contentEditable='plaintext-only';
   function send(commit=false){if(!ready)return;const value=node.textContent.replace(/[\r\n]+/g,' ').slice(0,100);if(node.textContent!==value)node.textContent=value;settings[key]=value;window.parent.postMessage({type:'question-preview-edit',key,value,commit},location.origin);}
   node.addEventListener('input',e=>{if(!e.isComposing)send();});node.addEventListener('compositionend',()=>send());node.addEventListener('blur',()=>send(true));node.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();node.blur();}});
@@ -19,6 +20,11 @@
  editable($('widget-name'),'name');
  function render(animate=false){
   table=window.QuestionTable.normalize(table,questions.length);
+  const themeValues=['',...new Set(topics.map(t=>t||'未分类'))];
+  const signatureTopics=JSON.stringify(themeValues.map(t=>[t,t?topics.filter(x=>(x||'未分类')===t).length:questions.length]));
+  if($('topic-filter').dataset.signature!==signatureTopics){$('topic-filter').replaceChildren(...themeValues.map(t=>{const o=document.createElement('option');o.value=t;o.textContent=(t||'全部')+'（'+(t?topics.filter(x=>(x||'未分类')===t).length:questions.length)+'）';return o;}));$('topic-filter').dataset.signature=signatureTopics;}
+  $('topic-filter').value=table.topic;$('topic-filter').disabled=busy||!ready;
+  $('topic-count').textContent=table.play==='multiple'?(table.topic||'全部')+'（'+(table.topic?topics.filter(t=>(t||'未分类')===table.topic).length:questions.length)+'）':'';
   copy($('widget-name'),'name');$('play-toggle').setAttribute('aria-checked',String(table.play==='multiple'));
   const count=1;const root=$('table-cards');
   for(const [i,row]of slots)if(i>=count){row.el.remove();slots.delete(i);}
@@ -42,13 +48,14 @@
   const signature=JSON.stringify(table.history.map(i=>questions[i]));
   if($('history-list').dataset.signature!==signature){$('history-list').replaceChildren(...table.history.map(i=>{const li=document.createElement('li');li.textContent=questions[i];return li;}));$('history-list').dataset.signature=signature;}
  }
- function accept(deck,animate){if(deck.revision<revision)return;const changed=JSON.stringify(table)!==JSON.stringify(deck.table);questions=deck.questions;remaining=deck.remaining;table=deck.table||window.QuestionTable.initial();settings=window.QuestionPresentation.normalize(deck.settings);revision=deck.revision;ready=true;render(animate&&changed);}
+ function accept(deck,animate){if(deck.revision<revision)return;const changed=JSON.stringify(table)!==JSON.stringify(deck.table);questions=deck.questions;topics=deck.items.map(q=>q.topic||'');remaining=deck.remaining;table=deck.table||window.QuestionTable.initial();settings=window.QuestionPresentation.normalize(deck.settings);revision=deck.revision;ready=true;render(animate&&changed);}
  async function load(animate=false){if(busy)return;try{accept(await cloud.load(),animate);status();}catch(e){ready=false;status(e.message);render();}}
  async function act(action,slot=0,value=null){if(busy||!ready)return;busy=true;render();try{
    if(cloud){const result=await cloud.tableChange(action,revision,slot,value);accept(result.deck,true);if(result.status==='conflict')status('其他设备刚更新了卡桌，请再点一次。');else status();}
-   else{const result=window.QuestionTable.act(table,remaining,questions.length,action,slot,value);table=result.table;remaining=result.remaining;saveLocal();render(true);status();}
+   else{const result=window.QuestionTable.act(table,remaining,questions.length,action,slot,value,Math.random,topics);table=result.table;remaining=result.remaining;saveLocal();render(true);status();}
    if(action==='draw'&&!matchMedia('(prefers-reduced-motion: reduce)').matches){clearTimeout(motionTimer);motionTimer=setTimeout(()=>{busy=false;render(true);},600);return;}
   }catch(e){status(e.message);if(cloud&&!e.message.includes('题目不足'))ready=false;}busy=false;render(true);}
+ $('topic-filter').addEventListener('change',()=>{$('draw-history').open=false;void act('topic',0,{topic:$('topic-filter').value});});
  $('play-toggle').addEventListener('click',()=>{ $('draw-history').open=false;void act('configure',0,{play:table.play==='single'?'multiple':'single'}); });
  if(preview){document.documentElement.classList.add('table-preview');$('preview-heading').hidden=false;$('manage-questions').hidden=true;remaining=questions.map((_,i)=>i);
   window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==window.parent||e.data?.type!=='question-preview')return;settings=window.QuestionPresentation.normalize(e.data.settings);ready=e.data.ready===true;render(true);});

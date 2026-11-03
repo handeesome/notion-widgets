@@ -98,3 +98,10 @@ test('the unified list continues from its final bullet and always leaves a blank
 test('pasting a bullet list at the end creates individual editable bullets',async()=>{
   const page=setup();await tick();page.fire('open-batch');const list=page.el('batch-existing');const tail=list.children.at(-1);let prevented=false;tail.handlers.paste({clipboardData:{getData:()=> '• 粘贴问题甲\n- 粘贴问题乙'},preventDefault(){prevented=true;}});assert.equal(prevented,true);assert.deepEqual(list.children.map(n=>n.textContent),['旧问题','粘贴问题甲','粘贴问题乙','']);await page.fire('submit-batch');assert.deepEqual(page.saved().questions,['旧问题','粘贴问题甲','粘贴问题乙']);
 });
+
+test('themes persist on additions and individual changes, while batch additions remain uncategorized',async()=>{
+ const page=setup();await tick();page.el('new-topic').value='爱情';page.el('new-questions').value='主题问题';await page.fire('add');assert.equal(page.saved().questionMeta[1].topic,'爱情');
+ const row=page.rows()[0];const topic=row.children.at(-1);topic.value='友情';topic.handlers.change();await tick();assert.equal(page.saved().questionMeta[0].topic,'友情');
+ page.el('dashboard-topic').value='爱情';page.fire('dashboard-topic','change');assert.equal(page.rows()[0].hidden,true);assert.equal(page.rows()[1].hidden,false);
+ page.fire('open-batch');const tail=page.el('batch-existing').children.at(-1);tail.textContent='批量新增';tail.handlers.input({isComposing:false});await page.fire('submit-batch');assert.deepEqual(page.saved().questionMeta.map(q=>q.topic),['友情','爱情','']);
+});

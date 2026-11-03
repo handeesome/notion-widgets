@@ -54,3 +54,8 @@ html[data-batch-open],html[data-batch-open] body { overflow:hidden; overscroll-b
 #batch-status { color:var(--muted); font-size:12px; line-height:1.8; }
 @media(max-width:760px) { .workspace { grid-template-columns:1fr; gap:20px; } .preview-panel { max-width:580px; width:100%; margin:auto; } .add-panel { margin:0 4px; } }
 @media(max-width:480px) { .dashboard { width:calc(100% - 28px); padding-top:24px; } .dashboard-intro { margin-top:36px; } .question-rows { gap:20px; } .question-row { padding:29px 18px 18px; } .add-panel { padding:34px 22px 22px; } .primary,.secondary { padding:8px 11px; } }
+
+.topic-input { color:var(--muted); background:transparent; border:1px solid var(--line); border-radius:6px; font-family:inherit; font-size:12px; padding:7px 9px; max-width:200px; }
+.add-panel .topic-input { margin:0 0 18px; }
+.row-topic { margin-top:12px; width:150px; }
+.question-row[hidden] { display:none; }
